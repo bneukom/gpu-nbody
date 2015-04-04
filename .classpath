@@ -4,7 +4,11 @@
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
 	<classpathentry kind="lib" path="lib/gluegen-rt-natives-windows-amd64.jar"/>
 	<classpathentry kind="lib" path="lib/gluegen-rt.jar" sourcepath="lib/gluegen-java-src.zip"/>
-	<classpathentry kind="lib" path="lib/JOCL-0.2.0RC.jar"/>
+	<classpathentry kind="lib" path="lib/JOCL-0.2.0RC.jar">
+		<attributes>
+			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="JoclNBody/lib"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="lib" path="lib/jogl-all-natives-windows-amd64.jar"/>
 	<classpathentry kind="lib" path="lib/jogl-all.jar" sourcepath="lib/jogl-java-src.zip"/>
 	<classpathentry kind="output" path="bin"/>

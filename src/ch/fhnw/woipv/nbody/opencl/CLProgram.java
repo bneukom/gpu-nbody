@@ -1,10 +1,13 @@
 package ch.fhnw.woipv.nbody.opencl;
 
+import java.io.Closeable;
+import java.io.IOException;
+
 import org.jocl.cl_program;
 
 import static org.jocl.CL.*;
 
-public class CLProgram {
+public class CLProgram implements Closeable {
 	private final cl_program program;
 	
 	public CLProgram(final cl_program program) {
@@ -21,6 +24,11 @@ public class CLProgram {
 	
 	public cl_program getId() {
 		return program;
+	}
+
+	@Override
+	public void close() throws IOException {
+//		clReleaseProgram(program);
 	}
 
 	

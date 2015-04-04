@@ -2,6 +2,9 @@ package ch.fhnw.woipv.nbody.opencl;
 
 import static org.jocl.CL.*;
 
+import java.io.Closeable;
+import java.io.IOException;
+
 import org.jocl.Pointer;
 import org.jocl.Sizeof;
 import org.jocl.cl_command_queue;
@@ -9,7 +12,7 @@ import org.jocl.cl_context;
 import org.jocl.cl_mem;
 import org.jocl.cl_program;
 
-public class CLContext {
+public class CLContext implements Closeable {
 	private final cl_context context;
 	private final CLDevice device;
 	
@@ -30,12 +33,19 @@ public class CLContext {
 		return new CLProgram(program);
 	}
 	
-	public CLMemory createBuffer(final long flags, final long size, final Pointer hostPointer) {
-		final cl_mem mem = clCreateBuffer(context, flags, size, hostPointer, null);
-		return new CLMemory(mem);
+	public CLMemory createBuffer(final long flags, final int[] data) {
+		final Pointer pointer = Pointer.to(data);
+		final cl_mem mem = clCreateBuffer(context, flags, Sizeof.cl_uint * data.length, pointer, null);
+		return new CLMemory(mem,  Sizeof.cl_uint * data.length, pointer);
 	}
 
 	public cl_context getContext() {
 		return context;
+		
+	}
+
+	@Override
+	public void close() throws IOException {
+ 		clReleaseContext(context);
 	}
 }

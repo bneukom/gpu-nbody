@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 
+import org.jocl.CL;
 import org.jocl.Pointer;
 import org.jocl.Sizeof;
 
@@ -17,8 +18,14 @@ import ch.fhnw.woipv.nbody.opencl.CLMemory;
 import ch.fhnw.woipv.nbody.opencl.CLPlatform;
 import ch.fhnw.woipv.nbody.opencl.CLProgram;
 
-public class NBody {
+public class CLTest {
 	public static void main(final String[] args) throws IOException {
+		final int numWorkGroups = 10;
+		final int localWorkSize = 16;
+		final int globalWorkSize = numWorkGroups * localWorkSize;
+
+		CL.setExceptionsEnabled(true);
+
 		final CLPlatform platform = CLPlatform.getPlatforms().get(0);
 
 		final CLDevice device = platform.getDevice(CL_DEVICE_TYPE_ALL, d -> {
@@ -31,20 +38,25 @@ public class NBody {
 
 		final CLContext context = device.createContext();
 		final CLCommandQueue commandQueue = context.createCommandQueue();
-		
-		final CLProgram program = context.createProgram(Files.readAllLines(new File("kernels/fenceTest.cl").toPath()).stream().reduce("", (accu, l) -> accu + l + System.lineSeparator()));
-	
+
+		final int tmpArray[] = new int[globalWorkSize];
+		final CLProgram program = context.createProgram(Files.readAllLines(new File("kernels/test.cl").toPath()).stream()
+				.reduce("", (accu, l) -> accu + l + System.lineSeparator()));
+
 		program.build("-cl-std=CL2.0");
-		
-		final CLKernel kernel = program.createKernel("sampleKernel");
-		
-		final int tmpArray[] = new int[1];
-		final Pointer tmpPointer = Pointer.to(tmpArray);
-		
-		// mainasd
-		try (CLMemory tmp = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, Sizeof.cl_uint, tmpPointer)){
-			kernel.addArgument(tmp);
-		}
+
+		final CLKernel kernel = program.createKernel("test");
+		final CLMemory clMemory = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, tmpArray);
+
+		kernel.addArgument(clMemory);
+
+		commandQueue.execute(kernel, 1, globalWorkSize, localWorkSize);
+
+		commandQueue.read(clMemory);
+
+		commandQueue.finish();
+
+		System.out.println(tmpArray[3]);
 	}
 
 }
