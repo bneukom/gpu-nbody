@@ -1,7 +1,9 @@
 package ch.fhnw.woipv.nbody.boundsReduction;
 
+import ch.fhnw.woipv.nbody.NBodySimulation;
+
 public class BoundsReduction {
-	public static void main(String[] args) {
-		
+	public void reduce(final NBodySimulation bodies) {
+		Pro
 	}
 }

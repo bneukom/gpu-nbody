@@ -1,12 +1,10 @@
 __attribute__ ((reqd_work_group_size(THREADS1, 1, 1)))
-__kernel void boundingBox()
-{
+__kernel void boundingBox() {
     __local volatile real minX[THREADS1], minY[THREADS1], minZ[THREADS1];
     __local volatile real maxX[THREADS1], maxY[THREADS1], maxZ[THREADS1];
 
-    uint i = (uint) get_local_id(0);
-    if (i == 0)
-    {
+    uint localId = (uint) get_local_id(0);
+    if (localId == 0) {
         minX[0] = _posX[0];
         minY[0] = _posY[0];
         minZ[0] = _posZ[0];
@@ -15,9 +13,9 @@ __kernel void boundingBox()
     barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
     /* initialize with valid data (in case #bodies < #threads) */
-    minX[i] = maxX[i] = minX[0];
-    minY[i] = maxY[i] = minY[0];
-    minZ[i] = maxZ[i] = minZ[0];
+    minX[localId] = maxX[localId] = minX[0];
+    minY[localId] = maxY[localId] = minY[0];
+    minZ[localId] = maxZ[localId] = minZ[0];
 
     uint inc = get_local_size(0) * get_num_groups(0);
     uint j = i + get_group_id(0) * get_local_size(0); // = get_global_id(0) (- get_global_offset(0))

@@ -10,6 +10,10 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="lib" path="lib/jogl-all-natives-windows-amd64.jar"/>
-	<classpathentry kind="lib" path="lib/jogl-all.jar" sourcepath="lib/jogl-java-src.zip"/>
+	<classpathentry kind="lib" path="lib/jogl-all.jar" sourcepath="lib/jogl-java-src.zip">
+		<attributes>
+			<attribute name="javadoc_location" value="http://jogamp.org/deployment/jogamp-next/javadoc/jogl/javadoc/"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
