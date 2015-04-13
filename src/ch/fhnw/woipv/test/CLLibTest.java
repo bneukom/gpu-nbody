@@ -17,7 +17,7 @@ import ch.fhnw.woipv.nbody.internal.opencl.CLProgram.BuildOption;
 public class CLLibTest {
 	public static void main(final String[] args) throws IOException {
 		final int numWorkGroups = 10;
-		final int localWorkSize = 16;
+		final int localWorkSize = 10;
 		final int globalWorkSize = numWorkGroups * localWorkSize;
 
 		final CLDevice device = CL20.createDevice();
@@ -31,7 +31,7 @@ public class CLLibTest {
 
 		final CLKernel kernel = program.createKernel("test");
 
-		final int tmpArray[] = new int[globalWorkSize];
+		final float tmpArray[] = new float[globalWorkSize];
 		final CLMemory clMemory = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, tmpArray);
 
 		kernel.addArgument(clMemory);
@@ -39,11 +39,11 @@ public class CLLibTest {
 		commandQueue.execute(kernel, 1, globalWorkSize, localWorkSize);
 		commandQueue.finish();
 		
-		commandQueue.execute(kernel, 1, globalWorkSize, localWorkSize);
+//		commandQueue.execute(kernel, 1, globalWorkSize, localWorkSize);
 		commandQueue.readBuffer(clMemory);
-		commandQueue.finish();
-
 		System.out.println(tmpArray[3]);
+//		commandQueue.finish();
+
 	}
 
 }

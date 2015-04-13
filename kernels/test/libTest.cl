@@ -1,4 +1,6 @@
-__kernel void test(__global int *out)
+
+// __attribute__ ((reqd_work_group_size(10, 1, 1)))
+__kernel void test(__global float *out)
 { 
 	int globalId = get_global_id(0);
 	int localId = get_local_id(0);

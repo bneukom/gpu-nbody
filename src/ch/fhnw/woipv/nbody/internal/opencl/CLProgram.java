@@ -11,7 +11,6 @@ import static org.jocl.CL.*;
 public class CLProgram implements Closeable {
 	private final cl_program program;
 	
-	
 	public CLProgram(final cl_program program) {
 		this.program = program;
 	}
@@ -33,15 +32,14 @@ public class CLProgram implements Closeable {
 		clReleaseProgram(program);
 	}
 
-	public enum BuildOption {
-		CL20("-cl-std=CL2.0"), MAD("-cl-mad-enable");
+	public static class BuildOption {
+		private final String option;
+		public static final BuildOption CL20 = new BuildOption("-cl-std=CL2.0");
+		public static final BuildOption MAD = new BuildOption("-cl-mad-enable");
 		
-		public final String option;
-
-		private BuildOption(String option) {
+		public BuildOption(String option) {
 			this.option = option;
 		}
-		
-		
 	}
+	
 }

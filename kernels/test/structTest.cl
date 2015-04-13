@@ -1,3 +1,5 @@
+struct 
+
 __kernel void test(__global int *out)
 { 
 	int globalId = get_global_id(0);
