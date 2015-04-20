@@ -24,7 +24,7 @@ public class CLKernel implements Closeable {
 
 		return new CLKernel(kernel, kernelName);
 	}
-
+	
 	public void setArgument(int index, long argSize, Pointer value) {
 		throw new IllegalStateException();
 	}

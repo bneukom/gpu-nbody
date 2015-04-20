@@ -1,264 +1,193 @@
-_attribute__ ((reqd_work_group_size(THREADS2, 1, 1)))
-__kernel void NBODY_KERNEL(buildTree)
-{
-    __local real radius, rootX, rootY, rootZ;
-    __local volatile int successCount;
-    __local volatile int doneCount; /* Count of items loaded in the tree */
-    __local volatile int deadCount; /* Count of items in workgroup finished */
+#pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics : enable
 
-    const int maxN = HAVE_CONSISTENT_MEMORY ? maxNBody : NBODY;
+//#include "kernels/nbody/debug.h"
+
+#ifdef DEBUG
+# define DEBUG_PRINT(x) printf x
+#else
+# define DEBUG_PRINT(x) do {} while (0)
+#endif
+
+#define NULL_BODY (-1)
+#define LOCK (-2)
+
+#define NUMBER_OF_CELLS 8 // the number of cells per node
+
+__attribute__ ((reqd_work_group_size(WORKGROUP_SIZE, 1, 1)))
+__kernel void buildTree(
+	__global float* _posX, __global float* _posY, __global float* _posZ, 
+	__global int* _blockCount, __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child) {
+
     int localMaxDepth = 1;
-    bool newParticle = true;
+	
+    const int stepSize = get_local_size(0) * get_num_groups(0);
+  	DEBUG_PRINT(("- Info -\n"));
+  	DEBUG_PRINT(("NUMBER_OF_NODES: %d\n", NUMBER_OF_NODES));
+  	DEBUG_PRINT(("NBODIES: %d\n", NBODIES));
+  	
+    // Cache root data 
+    float radius = *_radius;
+    float rootX = _posX[NUMBER_OF_NODES];
+	float rootY = _posY[NUMBER_OF_NODES];
+    float rootZ = _posZ[NUMBER_OF_NODES];
 
-    uint inc = get_local_size(0) * get_num_groups(0);
-    int i = get_global_id(0);
+	DEBUG_PRINT(("rootX: %f\n", rootX));
+	DEBUG_PRINT(("rootY: %f\n", rootY));
+	DEBUG_PRINT(("rootZ: %f\n", rootZ));
+	DEBUG_PRINT(("radius: %f\n", *_radius));
+	int childPath;
 
-    if (get_local_id(0) == 0)
-    {
-        /* Cache root data */
-        radius = _treeStatus->radius;
-        rootX = _posX[NNODE];
-        rootY = _posY[NNODE];
-        rootZ = _posZ[NNODE];
+	bool newBody = true;
+	int node;
+	
+	// iterate over all bodies assigned to this thread
+	int bodyIndex = get_global_id(0);
+	DEBUG_PRINT(("- Iterate over Bodies -\n"));
+    while (bodyIndex < NBODIES) {
+    	DEBUG_PRINT(("bodyIndex: %d\n", bodyIndex));
+    	DEBUG_PRINT(("\tnew body: %s\n", newBody ? "true" : "false"));
+        float currentR;
+        float bodyX, bodyY, bodyZ;
+        int depth;
 
-        doneCount = _treeStatus->doneCnt;
-        successCount = 0;
-        deadCount = 0;
-    }
-    barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+        if (newBody) {
+			// new body, so start traversing at root
+            newBody = false;
 
-    if (HAVE_CONSISTENT_MEMORY)
-    {
-        (void) atom_add(&deadCount, i >= maxN);
-        barrier(CLK_LOCAL_MEM_FENCE);
-    }
+            bodyX = _posX[bodyIndex];
+            bodyY = _posY[bodyIndex];
+            bodyZ = _posZ[bodyIndex];
+            DEBUG_PRINT(("\tbodyX: (%f, %f, %f)\n", bodyX, bodyY, bodyZ));
+	
+            node = NUMBER_OF_NODES;
+            depth = 1;
+            currentR = radius;
 
-    if (!HAVE_CONSISTENT_MEMORY)
-    {
-        if (doneCount == NBODY)
-            return;
-    }
+            // Determine which child to follow
+            childPath = 0;
+            if (rootX < bodyX) childPath  = 1;
+            if (rootY < bodyY) childPath += 2;
+            if (rootZ < bodyZ) childPath += 4;
+            DEBUG_PRINT(("\tchildPath: %d\n", childPath));
+        }
 
-    cl_assert_rtn(_treeStatus, !isnan(radius) && !isinf(radius));
+        int childIndex = _child[NUMBER_OF_CELLS * node + childPath];
+		DEBUG_PRINT(("\tchildIndex: %d\n", childIndex));
+		DEBUG_PRINT(("\tfind leaf cell: %d\n", childIndex));
+		// follow path to leaf cell
+        while (childIndex >= NBODIES) {
+            node = childIndex;
+            ++depth;
+            currentR *= 0.5f;
 
-    /* If we know we have consistent global memory across workgroups,
-     * we will continue this loop until we completely construct the
-     * tree in a single kernel call, limited by the upper bound
-     * on the number of particles for responsiveness.
-     *
-     * If we don't have consistent memory, we will try once per
-     * particle to load it, and if it fails we abandon it. We repeat
-     * the kernel until everything is completed. We also need to do
-     * additional checking to make sure that all values we depend on
-     * are fully visible to the workitem before using them.
-     *
-     */
+			// Determine which child to follow
+            childPath = 0;
+            if (_posX[node] < bodyX) childPath  = 1;
+            if (_posY[node] < bodyY) childPath += 2;
+            if (_posZ[node] < bodyZ) childPath += 4;
 
-  #if HAVE_CONSISTENT_MEMORY
-    while (deadCount != THREADS2) /* We need to avoid conditionally barriering when reducing mem. pressure */
-  #else
-    while (i < maxN)   /* We can just keep going until we are done with no barrier */
-  #endif
-    {
-        if (!HAVE_CONSISTENT_MEMORY || i < maxN)
-        {
-            real r;
-            real px, py, pz;
-            int j, n, depth;
-            bool posNotReady;
+            childIndex = _child[NUMBER_OF_CELLS * node + childPath];
+        }
+        
+        DEBUG_PRINT(("\tleaf cell childIndex: %d\n", childIndex));
 
-            if (newParticle)
-            {
-                /* New body, so start traversing at root */
-                newParticle = false;
-                posNotReady = false;
-
-                px = _posX[i];
-                py = _posY[i];
-                pz = _posZ[i];
-                n = NNODE;
-                depth = 1;
-                r = radius;
-
-                /* Determine which child to follow */
-                j = 0;
-                if (rootX <= px)
-                    j = 1;
-                if (rootY <= py)
-                    j |= 2;
-                if (rootZ <= pz)
-                    j |= 4;
-            }
-
-            int ch = _child[NSUB * n + j];
-            while (ch >= NBODY && !posNotReady && depth <= MAXDEPTH)  /* Follow path to leaf cell */
-            {
-                n = ch;
-                ++depth;
-                r *= 0.5;
-
-                real pnx = _posX[n];
-                real pny = _posY[n];
-                real pnz = _posZ[n];
-
-                /* Test if we don't have a consistent view. We
-                   initialized these all to NAN so we can be sure we
-                   have a good view once actually written.
-
-                   This is in case we don't have cross-workgroup global memory consistency
-                 */
-                posNotReady = isnan(pnx) || isnan(pny) || isnan(pnz);
-
-                /* Determine which child to follow */
-                j = 0;
-                if (pnx <= px)
-                    j = 1;
-                if (pny <= py)
-                    j |= 2;
-                if (pnz <= pz)
-                    j |= 4;
-                ch = _child[NSUB * n + j];
-            }
-
-            /* Skip if child pointer is locked, or the same particle, and try again later.
-
-               If we have consistent memory we only need to check if ch != LOCK.
-             */
-            if ((ch != LOCK) && (ch != i) && !posNotReady)
-            {
-                int locked = NSUB * n + j;
-
-                if (ch == atom_cmpxchg(&_child[locked], ch, LOCK)) /* Try to lock */
-                {
-                    if (ch == -1)
-                    {
-                        /* If null, just insert the new body */
-                        _child[locked] = i;
-                    }
-                    else  /* There already is a body in this position */
-                    {
-                        int patch = -1;
-                        /* Create new cell(s) and insert the old and new body */
-                        do
-                        {
-                            ++depth;
-
-                            int cell = atom_dec(&_treeStatus->bottom) - 1;
-                            if (cell <= NBODY)
-                            {
-                                _treeStatus->errorCode = NBODY_KERNEL_CELL_OVERFLOW;
-                                _treeStatus->bottom = NNODE;
-                            }
-                            patch = max(patch, cell);
-
-                            if (SW93 || NEWCRITERION)
-                            {
-                                _critRadii[cell] = r;  /* Save cell size */
-                            }
-
-                            real nx = _posX[n];
-                            real ny = _posY[n];
-                            real nz = _posZ[n];
-
-                            cl_assert(_treeStatus, !isnan(nx) && !isnan(ny) && !isnan(nz));
-
-                            r *= 0.5;
-
-                            real x = nx + (px < nx ? -r : r);
-                            real y = ny + (py < ny ? -r : r);
-                            real z = nz + (pz < nz ? -r : r);
-
-                            _posX[cell] = x;
-                            _posY[cell] = y;
-                            _posZ[cell] = z;
-
-                            if (patch != cell)
-                            {
-                                _child[NSUB * n + j] = cell;
-                            }
-
-
-                            real pchx = _posX[ch];
-                            real pchy = _posY[ch];
-                            real pchz = _posZ[ch];
-
-                            cl_assert(_treeStatus, !isnan(pchx) && !isnan(pchy) && !isnan(pchz));
-
-                            j = 0;
-                            if (x <= pchx)
-                                j = 1;
-                            if (y <= pchy)
-                                j |= 2;
-                            if (z <= pchz)
-                                j |= 4;
-
-                            _child[NSUB * cell + j] = ch;
-
-                            /* The AMD compiler reorders the next read
-                             * from _child, which then reads the old/wrong
-                             * value when the children are the same without this.
-                             */
-                            maybe_strong_global_mem_fence();
-
-                            n = cell;
-                            j = 0;
-                            if (x <= px)
-                                j = 1;
-                            if (y <= py)
-                                j |= 2;
-                            if (z <= pz)
-                                j |= 4;
-
-                            ch = _child[NSUB * n + j];
-
-                            /* Repeat until the two bodies are
-                             * different children or we overflow */
+        if (childIndex != LOCK) { 
+            int locked = NUMBER_OF_CELLS * node + childPath;
+            DEBUG_PRINT(("\tlock: %d\n", locked));
+            DEBUG_PRINT(("\tnode: %d\n", node));
+            if (childIndex == atom_cmpxchg(&_child[locked], childIndex, LOCK)) { // try locking
+                if (childIndex == NULL_BODY) {
+					// no body has been here, so just insert
+					DEBUG_PRINT(("\t -> no body in cell - insert body %d at %d\n", bodyIndex, locked));
+                    _child[locked] = bodyIndex;
+                } else {
+                	DEBUG_PRINT(("\t -> childIndex %d already used\n", childIndex));
+                    int patch = -1;
+                    // Create new cell(s) and insert the old and new body
+                    do {
+                        depth++;
+						DEBUG_PRINT(("\t\titeration %d >= 0\n", childIndex));
+                        const int cell = atom_dec(_bottom) - 1;
+                        DEBUG_PRINT(("\t\tcell %d\n", cell));
+                         DEBUG_PRINT(("\t\tnode: %d\n", node));
+                        if (cell <= NBODIES)  {
+							// TODO REPORT ERROR
+                          	printf("ERROR ABORT\n");
+                          	*_bottom = NUMBER_OF_NODES;
+                          	return;
                         }
-                        while (ch >= 0 && depth <= MAXDEPTH);
+                        patch = max(patch, cell);
 
-                        _child[NSUB * n + j] = i;
-                        maybe_strong_global_mem_fence();
-                        _child[locked] = patch;
-                    }
-                    maybe_strong_global_mem_fence();
+						DEBUG_PRINT(("\t\tchildPath & 1: %d\n", childPath & 1));
+						float x = (childPath & 1) * currentR;
+						float y = ((childPath >> 1) & 1) * currentR;
+						float z = ((childPath >> 2) & 1) * currentR;
+              
+                        currentR *= 0.5f;
+						
+						_mass[cell] = -1.0f;
+						// TODO StartD ???
+                        x = _posX[cell] = _posX[node] - currentR + x;
+                        y = _posY[cell] = _posY[node] - currentR + y;
+                        z = _posZ[cell] = _posZ[node] - currentR + z;
 
-                    localMaxDepth = max(depth, localMaxDepth);
-                    if (HAVE_CONSISTENT_MEMORY)
-                    {
-                        i += inc;  /* Move on to next body */
-                        newParticle = true;
-                        (void) atom_add(&deadCount, i >= maxN);
-                    }
-                    else
-                    {
-                        (void) atom_inc(&successCount);
-                    }
+						#pragma unroll NUMBER_OF_CELLS
+						for (int k = 0; k < NUMBER_OF_CELLS; k++) _child[cell * NUMBER_OF_CELLS + k] = -1;
+
+                        if (patch != cell) {
+							DEBUG_PRINT(("\t\tinsert cell %d at %d\n", cell, NUMBER_OF_CELLS * node + childPath));
+                            DEBUG_PRINT(("\t\t\tnode: %d\n", node));
+                            DEBUG_PRINT(("\t\t\tchildpath: %d\n", childPath));
+                            _child[NUMBER_OF_CELLS * node + childPath] = cell;
+                        }
+
+
+                        childPath = 0;
+                        if (x < _posX[childIndex]) childPath = 1;
+                        if (y < _posY[childIndex]) childPath += 2;         
+                        if (z < _posZ[childIndex]) childPath += 4;
+                        _child[NUMBER_OF_CELLS * cell + childPath] = childIndex;
+						
+						// next child
+                        node = cell;
+                        childPath = 0;
+                        if (x < bodyX) childPath = 1;             
+                        if (y < bodyY) childPath += 2;
+                        if (z < bodyZ) childPath += 4;
+                            
+                        childIndex = _child[NUMBER_OF_CELLS * node + childPath];
+                        DEBUG_PRINT(("\t\tchildIndex: %d\n", childIndex));
+                        DEBUG_PRINT(("\t\tnode: %d\n", node));
+                        DEBUG_PRINT(("\t\t=======\n"));
+                    } while (childIndex >= 0);
+                    
+                    DEBUG_PRINT(("\tadded subtree push out\n"));
+                    DEBUG_PRINT(("\tinsert body %d at %d\n", bodyIndex, NUMBER_OF_CELLS * node + childPath));
+                    _child[NUMBER_OF_CELLS * node + childPath] = bodyIndex;
+
+					// push out
+					atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE, memory_order_seq_cst, memory_scope_device);
+		
+                    _child[locked] = patch;
                 }
-            }
+                
+				atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE, memory_order_seq_cst, memory_scope_device);
+		
+                localMaxDepth = max(depth, localMaxDepth);
 
-            if (!HAVE_CONSISTENT_MEMORY)
-            {
-                i += inc;  /* Move on to next body */
-                newParticle = true;
+				// move to next body
+                bodyIndex += stepSize;
+                newBody = true;           
             }
-        }
+		}
 
-       if (HAVE_CONSISTENT_MEMORY)
-       {
-            /* Wait for other wavefronts to finish loading to reduce
-             * memory pressures */
-           barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
-       }
+		// wait for others to finish to reducue memory pressure
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+		
     }
 
-    if (!HAVE_CONSISTENT_MEMORY)
-    {
-        barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
-        if (get_local_id(0) == 0)
-        {
-            (void) atom_add(&_treeStatus->doneCnt, successCount);
-        }
-    }
-
-    (void) atom_max(&_treeStatus->maxDepth, localMaxDepth);
+	// TODO MAX DEPTH
+    // (void) atom_max(_maxDepth, localMaxDepth);
 }
