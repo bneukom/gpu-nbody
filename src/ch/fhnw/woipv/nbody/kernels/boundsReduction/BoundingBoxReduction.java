@@ -1,4 +1,4 @@
-package ch.fhnw.woipv.nbody.boundsReduction;
+package ch.fhnw.woipv.nbody.kernels.boundsReduction;
 
 import java.io.File;
 import java.io.IOException;

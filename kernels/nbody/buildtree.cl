@@ -2,13 +2,7 @@
 #pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics : enable
 #pragma OPENCL EXTENSION cl_khr_local_int32_base_atomics : enable
 
-//#include "kernels/nbody/debug.h"
-
-#ifdef DEBUG
-# define DEBUG_PRINT(x) printf x
-#else
-# define DEBUG_PRINT(x) do {} while (0)
-#endif
+#include "kernels/nbody/debug.h"
 
 #define NULL_BODY (-1)
 #define LOCK (-2)
@@ -21,9 +15,8 @@ __kernel void buildTree(
 	__global int* _blockCount, __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child) {
 
     int localMaxDepth = 1;
-	
+	DEBUG_PRINT(("- Info Buildtree -\n"));
     const int stepSize = get_local_size(0) * get_num_groups(0);
-  	DEBUG_PRINT(("- Info -\n"));
   	DEBUG_PRINT(("NUMBER_OF_NODES: %d\n", NUMBER_OF_NODES));
   	DEBUG_PRINT(("NBODIES: %d\n", NBODIES));
   	
@@ -76,13 +69,14 @@ __kernel void buildTree(
         int childIndex = _child[NUMBER_OF_CELLS * node + childPath];
 		DEBUG_PRINT(("\tchildIndex: %d\n", childIndex));
 		DEBUG_PRINT(("\tfind leaf cell: %d\n", childIndex));
+		
 		// follow path to leaf cell
         while (childIndex >= NBODIES) {
             node = childIndex;
             ++depth;
             currentR *= 0.5f;
 
-			// Determine which child to follow
+			// determine which child to follow
             childPath = 0;
             if (_posX[node] < bodyX) childPath  = 1;
             if (_posY[node] < bodyY) childPath += 2;
@@ -111,7 +105,7 @@ __kernel void buildTree(
 						DEBUG_PRINT(("\t\titeration %d >= 0\n", childIndex));
                         const int cell = atom_dec(_bottom) - 1;
                         DEBUG_PRINT(("\t\tcell %d\n", cell));
-                         DEBUG_PRINT(("\t\tnode: %d\n", node));
+                        DEBUG_PRINT(("\t\tnode: %d\n", node));
                         if (cell <= NBODIES)  {
 							// TODO REPORT ERROR
                           	printf("ERROR ABORT\n");
@@ -167,12 +161,14 @@ __kernel void buildTree(
                     DEBUG_PRINT(("\tinsert body %d at %d\n", bodyIndex, NUMBER_OF_CELLS * node + childPath));
                     _child[NUMBER_OF_CELLS * node + childPath] = bodyIndex;
 
-					// push out
+					// TODO memory_order_seq_cst needed?
+					// push out 
 					atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE, memory_order_seq_cst, memory_scope_device);
 		
                     _child[locked] = patch;
                 }
                 
+                // TODO is this needed
 				atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE, memory_order_seq_cst, memory_scope_device);
 		
                 localMaxDepth = max(depth, localMaxDepth);

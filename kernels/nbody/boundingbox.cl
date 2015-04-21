@@ -21,7 +21,7 @@ __kernel void boundingBox(
 	__global int* _blockCount, __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child) {
 
 
-	DEBUG_PRINT(("INFO\n"));
+	DEBUG_PRINT(("- Info Boundingbox -\n"));
 	DEBUG_PRINT(("block_count = %d\n", *_blockCount));
     __local volatile float localMinX[WORKGROUP_SIZE], localMinY[WORKGROUP_SIZE], localMinZ[WORKGROUP_SIZE];
     __local volatile float localMaxX[WORKGROUP_SIZE], localMaxY[WORKGROUP_SIZE], localMaxZ[WORKGROUP_SIZE];
@@ -54,7 +54,7 @@ __kernel void boundingBox(
     int stepSize = get_local_size(0) * get_num_groups(0); // get_local_size(0) = NUM_THREADS 
 	DEBUG_PRINT(("stepSize = %d\n", stepSize));
 	DEBUG_PRINT(("nbodies = %d\n", NBODIES));
-	DEBUG_PRINT(("CODE\n"));
+	DEBUG_PRINT(("- code boundingbox -\n"));
 	for (int i = localId + get_group_id(0) * get_local_size(0); i < NBODIES; i += stepSize) { 
 		DEBUG_PRINT(("i = %d (%d, %d)\n", i, get_group_id(0), get_local_id(0)));
 	    float pos = _posX[i];
