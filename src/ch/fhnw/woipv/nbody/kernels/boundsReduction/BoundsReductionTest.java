@@ -5,12 +5,12 @@ import static org.jocl.CL.*;
 import java.io.IOException;
 import java.util.Random;
 
-import ch.fhnw.woipv.nbody.internal.opencl.CL20;
-import ch.fhnw.woipv.nbody.internal.opencl.CLCommandQueue;
-import ch.fhnw.woipv.nbody.internal.opencl.CLContext;
-import ch.fhnw.woipv.nbody.internal.opencl.CLDevice;
-import ch.fhnw.woipv.nbody.internal.opencl.CLMemory;
-import ch.fhnw.woipv.nbody.internal.opencl.CLProgram.BuildOption;
+import net.benjaminneukom.oocl.cl.CL20;
+import net.benjaminneukom.oocl.cl.CLCommandQueue;
+import net.benjaminneukom.oocl.cl.CLContext;
+import net.benjaminneukom.oocl.cl.CLDevice;
+import net.benjaminneukom.oocl.cl.CLMemory;
+import net.benjaminneukom.oocl.cl.CLProgram.BuildOption;
 
 public class BoundsReductionTest {
 
@@ -32,9 +32,9 @@ public class BoundsReductionTest {
 		
 //		CL_DEVICE_WAVEFRONT_WIDTH_AMD
 		
-		final int waveFrontSize = 64;
+		final int warpSize = 64;
 		int numberOfNodes = NUMBER_OF_BODIES * 2;
-		while ((numberOfNodes & (waveFrontSize - 1)) != 0)
+		while ((numberOfNodes & (warpSize - 1)) != 0)
 	        ++numberOfNodes;
 		
 		final CLContext context = device.createContext();
@@ -48,6 +48,7 @@ public class BoundsReductionTest {
 		final float radius[] = new float[1];
 		final int bottom[] = new int[1];
 		final float mass[] = new float[numberOfNodes + 1];
+		final float bodyCount[] = new float[numberOfNodes + 1];
 		final int child[] = new int[8 * (numberOfNodes + 1)];
 
 		generateBodies(bodiesX, bodiesY, bodiesZ);
@@ -65,12 +66,13 @@ public class BoundsReductionTest {
 		final CLMemory radiusBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, radius);
 		final CLMemory bottomBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, bottom);
 		final CLMemory massBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, mass);
+		final CLMemory bodyCountBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, bodyCount);
 		final CLMemory childBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, child);
 
-		boundingBoxReduction.calculateBoundingBox(context, commandQueue, 
+		boundingBoxReduction.execute(context, commandQueue, 
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer, 
-				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, 
-				NUMBER_OF_BODIES, GLOBAL_WORK_SIZE, LOCAL_WORK_SIZE, WORK_GROUPS, numberOfNodes);
+				blockCountBuffer, bodyCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, 
+				NUMBER_OF_BODIES, GLOBAL_WORK_SIZE, LOCAL_WORK_SIZE, WORK_GROUPS, numberOfNodes, warpSize, false);
 
 		commandQueue.readBuffer(bodiesXBuffer);
 		commandQueue.readBuffer(bodiesYBuffer);

@@ -15,5 +15,6 @@
 			<attribute name="javadoc_location" value="http://jogamp.org/deployment/jogamp-next/javadoc/jogl/javadoc/"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry combineaccessrules="false" kind="src" path="/OOCL"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

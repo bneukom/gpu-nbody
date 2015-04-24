@@ -1,0 +1,32 @@
+[General]
+ActiveTab=session_0
+
+[KBSession]
+KBTabs\2\TabFile=session_0
+KBTabs\2\TabName=session_0
+KBTabs\2\KBCache=
+KBTabs\2\KBVarsByKernel=
+KBTabs\2\KBGroupSizes=
+KBTabs\2\KBIterations=
+KBTabs\2\KBSelectedKernel=
+KBTabs\2\TabCode=
+KBTabs\2\KBFacadeVisible=true
+KBTabs\2\KBServerActive=false
+KBTabs\2\Artifacts=
+KBTabs\2\Reports=
+KBTabs\2\CLFiles=C:\\dev\\workspace-gpunbody\\NBodySimulation\\kernels\\nbody\\boundingbox.cl
+KBTabs\2\TabOpt6=
+KBTabs\2\TabOpt7=2
+KBTabs\2\TabOpt10=(local) BNEUKOM-NB
+KBTabs\2\TabOpt17=Intel(R) OpenCL
+KBTabs\2\TabOpt18=GPU: Intel(R) HD Graphics 5500
+KBTabs\2\TabOpt1=true
+KBTabs\2\TabOpt3=false
+KBTabs\2\TabOpt9=Current Operating System
+KBTabs\2\TabOpt11=
+KBTabs\2\TabOpt4=false
+KBTabs\2\TabOpt13=5010
+KBTabs\2\TabOpt14=5999
+KBTabs\2\TabOpt15=false
+KBTabs\2\TabOpt16=20000
+KBTabs\size=2

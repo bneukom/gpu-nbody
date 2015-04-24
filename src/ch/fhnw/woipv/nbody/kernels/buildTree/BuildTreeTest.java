@@ -6,12 +6,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 
-import ch.fhnw.woipv.nbody.internal.opencl.CL20;
-import ch.fhnw.woipv.nbody.internal.opencl.CLCommandQueue;
-import ch.fhnw.woipv.nbody.internal.opencl.CLContext;
-import ch.fhnw.woipv.nbody.internal.opencl.CLDevice;
-import ch.fhnw.woipv.nbody.internal.opencl.CLMemory;
-import ch.fhnw.woipv.nbody.internal.opencl.CLProgram.BuildOption;
+import net.benjaminneukom.oocl.cl.CL20;
+import net.benjaminneukom.oocl.cl.CLCommandQueue;
+import net.benjaminneukom.oocl.cl.CLContext;
+import net.benjaminneukom.oocl.cl.CLDevice;
+import net.benjaminneukom.oocl.cl.CLMemory;
+import net.benjaminneukom.oocl.cl.CLProgram.BuildOption;
 import ch.fhnw.woipv.nbody.kernels.boundsReduction.BoundingBoxReduction;
 
 public class BuildTreeTest {
@@ -25,8 +25,8 @@ public class BuildTreeTest {
 	private static final int GLOBAL_WORK_SIZE = WORK_GROUPS * LOCAL_WORK_SIZE;
 
 	// TODO must this be a multiple of global worksize?
-	private static final int NUMBER_OF_BODIES = 2048 * 1024;
-	private static final float BODIES_RANGE = (float) 1e9; 
+	private static final int NUMBER_OF_BODIES = 2048 * 512;
+	private static final float BODIES_RANGE = (float) 1e10;
 
 	public static void main(String[] args) throws IOException {
 		final BoundingBoxReduction boundingBoxReduction = new BoundingBoxReduction();
@@ -34,9 +34,9 @@ public class BuildTreeTest {
 
 		final CLDevice device = CL20.createDevice();
 
-		final int waveFrontSize = 64;
+		final int warpSize = 64;
 		int numberOfNodes = NUMBER_OF_BODIES * 2;
-		while ((numberOfNodes & (waveFrontSize - 1)) != 0)
+		while ((numberOfNodes & (warpSize - 1)) != 0)
 			++numberOfNodes;
 
 		final CLContext context = device.createContext();
@@ -50,6 +50,7 @@ public class BuildTreeTest {
 		final float radius[] = new float[1];
 		final int bottom[] = new int[1];
 		final float mass[] = new float[numberOfNodes + 1];
+		final float bodyCount[] = new float[numberOfNodes + 1];
 		final int child[] = new int[8 * (numberOfNodes + 1)];
 
 		generateBodies(bodiesX, bodiesY, bodiesZ);
@@ -62,20 +63,21 @@ public class BuildTreeTest {
 		final CLMemory radiusBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, radius);
 		final CLMemory bottomBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, bottom);
 		final CLMemory massBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, mass);
+		final CLMemory bodyCountBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, bodyCount);
 		final CLMemory childBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, child);
 
-		boundingBoxReduction.calculateBoundingBox(context, commandQueue,
+		boundingBoxReduction.execute(context, commandQueue,
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
-				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer,
-				NUMBER_OF_BODIES, GLOBAL_WORK_SIZE, LOCAL_WORK_SIZE, WORK_GROUPS, numberOfNodes);
+				blockCountBuffer, bodyCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer,
+				NUMBER_OF_BODIES, GLOBAL_WORK_SIZE, LOCAL_WORK_SIZE, WORK_GROUPS, numberOfNodes, warpSize, false);
 
 		commandQueue.readBuffer(bottomBuffer);
 		int numNodes = bottom[0];
 
-		buildTree.buildTree(context, commandQueue,
+		buildTree.execute(context, commandQueue,
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
-				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer,
-				NUMBER_OF_BODIES, GLOBAL_WORK_SIZE, LOCAL_WORK_SIZE, WORK_GROUPS, numberOfNodes);
+				blockCountBuffer, bodyCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer,
+				NUMBER_OF_BODIES, GLOBAL_WORK_SIZE, LOCAL_WORK_SIZE, WORK_GROUPS, numberOfNodes, warpSize, false);
 
 		commandQueue.readBuffer(bodiesXBuffer);
 		commandQueue.readBuffer(bodiesYBuffer);
@@ -93,7 +95,7 @@ public class BuildTreeTest {
 		}
 		System.out.println("child[]: " + Arrays.toString(child));
 		System.out.println("mass[]: " + Arrays.toString(mass));
-		
+
 		System.out.print("bodies[]: ");
 		for (int i = 0; i < numberOfNodes + 1; ++i) {
 			System.out.print("(" + bodiesX[i] + ", " + bodiesY[i] + ", " + bodiesZ[i] + "), ");

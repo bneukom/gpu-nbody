@@ -5,14 +5,14 @@ import static org.jocl.CL.*;
 import java.io.File;
 import java.io.IOException;
 
-import ch.fhnw.woipv.nbody.internal.opencl.CL20;
-import ch.fhnw.woipv.nbody.internal.opencl.CLCommandQueue;
-import ch.fhnw.woipv.nbody.internal.opencl.CLContext;
-import ch.fhnw.woipv.nbody.internal.opencl.CLDevice;
-import ch.fhnw.woipv.nbody.internal.opencl.CLKernel;
-import ch.fhnw.woipv.nbody.internal.opencl.CLMemory;
-import ch.fhnw.woipv.nbody.internal.opencl.CLProgram;
-import ch.fhnw.woipv.nbody.internal.opencl.CLProgram.BuildOption;
+import net.benjaminneukom.oocl.cl.CL20;
+import net.benjaminneukom.oocl.cl.CLCommandQueue;
+import net.benjaminneukom.oocl.cl.CLContext;
+import net.benjaminneukom.oocl.cl.CLDevice;
+import net.benjaminneukom.oocl.cl.CLKernel;
+import net.benjaminneukom.oocl.cl.CLMemory;
+import net.benjaminneukom.oocl.cl.CLProgram;
+import net.benjaminneukom.oocl.cl.CLProgram.BuildOption;
 
 public class CLLibTest {
 	public static void main(final String[] args) throws IOException {

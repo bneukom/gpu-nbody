@@ -12,7 +12,7 @@
 __attribute__ ((reqd_work_group_size(WORKGROUP_SIZE, 1, 1)))
 __kernel void buildTree(
 	__global float* _posX, __global float* _posY, __global float* _posZ, 
-	__global int* _blockCount, __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child) {
+	__global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child) {
 
     int localMaxDepth = 1;
 	DEBUG_PRINT(("- Info Buildtree -\n"));
