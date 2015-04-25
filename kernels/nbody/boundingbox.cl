@@ -21,7 +21,6 @@ __kernel void boundingBox(
 	__global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child) {
 
 
-	DEBUG_PRINT(("_mass[0]: %d\n", _mass[0]));
 	DEBUG_PRINT(("- Info Boundingbox -\n"));
 	DEBUG_PRINT(("block_count = %d\n", *_blockCount));
     __local volatile float localMinX[WORKGROUP_SIZE], localMinY[WORKGROUP_SIZE], localMinZ[WORKGROUP_SIZE];
@@ -35,10 +34,13 @@ __kernel void boundingBox(
 	DEBUG_PRINT(("group_id = %d\n", groupId));
 	DEBUG_PRINT(("local_id = %d\n", localId));
 
-	// TODO use infinity?
 	// initialize with valid data (in case #bodies < #threads)
-
-	if (localId == 1) { 
+	if (localId == 0) { 
+		DEBUG_PRINT(("_posX[0] = %d\n", _posX[0]));
+		DEBUG_PRINT(("_posY[0] = %d\n", _posY[0]));
+		DEBUG_PRINT(("_posZ[0] = %d\n", _posZ[0]));
+		
+		
 		localMinX[0] = _posX[0];
 		localMinY[0] = _posY[0];
 		localMinZ[0] = _posZ[0];
@@ -49,6 +51,10 @@ __kernel void boundingBox(
 	localMinX[localId] = localMaxX[localId] = localMinX[0];
     localMinY[localId] = localMaxY[localId] = localMinY[0];
     localMinZ[localId] = localMaxZ[localId] = localMinZ[0];
+    
+    DEBUG_PRINT(("localMinX[localId] = %d\n", localMinX[localId]));
+	DEBUG_PRINT(("localMinY[localId] = %d\n", localMinY[localId]));
+	DEBUG_PRINT(("localMinZ[localId] = %d\n", localMinZ[localId]));
 
 	// scan all bodies
 	// TODO is this get_global_size() ???

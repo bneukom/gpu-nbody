@@ -17,11 +17,17 @@ __kernel void summarizeTree(
 	__global float* _posX, __global float* _posY, __global float* _posZ, 
 	__global int* _blockCount, __global int* _bodyCount,  __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child) {
 	
+	// TODO
+	__local volatile int localChild[WORKGROUP_SIZE * NUMBER_OF_CELLS];
+	
 	DEBUG_PRINT(("- Info Summarizetree  -\n"));
 	int bottom = *_bottom;
 	DEBUG_PRINT(("bottom: %d\n", bottom));
 	int stepSize = get_local_size(0) * get_num_groups(0);
+	DEBUG_PRINT(("stepSize: %d\n", stepSize));
+	DEBUG_PRINT(("NUMBER_OF_NODES: %d\n", NUMBER_OF_NODES));
 
+	// TODO small work group sizes DO NOT WORK WITH this?!
     // align to warp size
     int node = (bottom & (-WARPSIZE)) + get_global_id(0);
     if (node < bottom)
@@ -33,8 +39,10 @@ __kernel void summarizeTree(
 	
 	int cellBodyCount = 0;
 	float cellMass;
+	float mass;
 	float centerX, centerY, centerZ;
 	
+	DEBUG_PRINT(("- Code Summarizetree  -\n"));
 	// iterate over all cells assigned to thread
 	while (node <= NUMBER_OF_NODES) {
 		if (missing == 0) {
@@ -52,25 +60,25 @@ __kernel void summarizeTree(
 		    #pragma unroll NUMBER_OF_CELLS
 		    for (int childIndex = 0; childIndex < NUMBER_OF_CELLS; childIndex++) {
 		    	int child = _child[node * NUMBER_OF_CELLS + childIndex];
-		    	DEBUG_PRINT(("\tchildIndex: %d\n", childIndex));
-		    	DEBUG_PRINT(("\t\tchildIndex: %d\n", child));
+		    	DEBUG_PRINT(("\t\tchildIndex: %d\n", childIndex));
+		    	DEBUG_PRINT(("\t\t\tchild: %d\n", child));
 				
 				// is used
 		    	if (child >= 0) {
-					DEBUG_PRINT(("\t\tchild is used\n"));
+					DEBUG_PRINT(("\t\t\tchild is used\n"));
 		    		if (childIndex != usedChildIndex) {
-						DEBUG_PRINT(("\t\tmove to front\n"));
+						DEBUG_PRINT(("\t\t\tmove to front\n"));
 		    			_child[NUMBER_OF_CELLS * node + childIndex] = -1;
 		    			_child[NUMBER_OF_CELLS * node + usedChildIndex] = child;
 		    		}
-
-					float mass = _mass[child];
-					DEBUG_PRINT(("\t\tmass[child]: %f\n", mass));
-					DEBUG_PRINT(("\t\t\tchild: %d\n", child));
-				
+		    		
 					// Cache missing children
-					_child[WORKGROUP_SIZE * missing + get_local_id(0)] = child;
+					localChild[WORKGROUP_SIZE * missing + get_local_id(0)] = child;
 					
+					mass = _mass[child];
+					DEBUG_PRINT(("\t\t\tmass[child]: %f\n", mass));
+					DEBUG_PRINT(("\t\t\t\tchild: %d\n", child));
+
 					++missing;
 					
 					if (mass >= 0.0f) {
@@ -97,9 +105,9 @@ __kernel void summarizeTree(
 		if (missing != 0) {
 			DEBUG_PRINT(("\tmissing is not zero - work missing children\n"));
 			do {
-				int child = _child[(missing - 1) * WORKGROUP_SIZE + get_local_id(0)];
+				int child = localChild[(missing - 1) * WORKGROUP_SIZE + get_local_id(0)];
 				DEBUG_PRINT(("\t\tchild: %d\n", child));
-				float mass = _mass[child];
+				mass = _mass[child];
 				
 				// Body children can never be missing, so this is a cell
 				if (mass >= 0.0f) {
@@ -115,7 +123,7 @@ __kernel void summarizeTree(
 					centerZ += _posZ[child] * mass;
 
 				}
-			} while ((cellMass >= 0.0f) && (missing != 0));
+			} while ((mass >= 0.0f) && (missing != 0));
 		}
 	
 		if (missing == 0) {
@@ -123,10 +131,13 @@ __kernel void summarizeTree(
 			DEBUG_PRINT(("\t\tbodyCount: %d\n", cellBodyCount));
 			DEBUG_PRINT(("\t\tcellMass: %f\n", cellMass));
 			_bodyCount[node] = cellBodyCount;
-			float inverseMass = 1.0f / cellMass;
-			_posX[node] = centerX * inverseMass;
-			_posY[node] = centerY * inverseMass;
-			_posZ[node] = centerZ * inverseMass;
+			mass = 1.0f / cellMass;
+			DEBUG_PRINT(("\t\tcenterX: %f\n", centerX));
+			DEBUG_PRINT(("\t\tcenterY: %f\n", centerY));
+			DEBUG_PRINT(("\t\tcenterZ: %f\n", centerZ));
+			_posX[node] = centerX * mass;
+			_posY[node] = centerY * mass;
+			_posZ[node] = centerZ * mass;
 			
 			// make sure data is visible before setting mass
 			atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE, memory_order_seq_cst, memory_scope_device);
@@ -134,6 +145,7 @@ __kernel void summarizeTree(
 			_mass[node] = cellMass;
 			
 			node += stepSize; // next cell
+			DEBUG_PRINT(("\t\tnext node: %d\n", node));
 		}
 	}
 }

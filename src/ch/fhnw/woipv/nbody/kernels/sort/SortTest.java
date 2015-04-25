@@ -1,4 +1,4 @@
-package ch.fhnw.woipv.nbody.kernels.summarizeTree;
+package ch.fhnw.woipv.nbody.kernels.sort;
 
 import static org.jocl.CL.*;
 
@@ -14,14 +14,14 @@ import net.benjaminneukom.oocl.cl.CLProgram.BuildOption;
 import ch.fhnw.woipv.nbody.kernels.boundsReduction.BoundingBoxReduction;
 import ch.fhnw.woipv.nbody.kernels.buildTree.BuildTree;
 
-public class SummarizeTreeTest {
+public class SortTest {
 
 	private static final BuildOption DEBUG = new BuildOption("-D DEBUG2");
 
-	private static final int WORK_GROUPS = 64;
+	private static final int WORK_GROUPS = 8;
 
 	// TODO must be power of two?
-	private static final int LOCAL_WORK_SIZE = 32;
+	private static final int LOCAL_WORK_SIZE = 8;
 	private static final int GLOBAL_WORK_SIZE = WORK_GROUPS * LOCAL_WORK_SIZE;
 
 	// TODO must this be a multiple of global worksize?
@@ -31,10 +31,14 @@ public class SummarizeTreeTest {
 	public static void main(String[] args) throws IOException {
 		final BoundingBoxReduction boundingBoxReduction = new BoundingBoxReduction();
 		final BuildTree buildTree = new BuildTree();
-		final SummarizeTree summarizeTree = new SummarizeTree();
+		final Sort summarizeTree = new Sort();
 
 		final CLDevice device = CL20.createDevice();
-
+		
+		// TODO blocks are ComputeUnits
+		// nnodes = nbodies * 2;
+		// if (nnodes < 1024*blocks) nnodes = 1024*blocks;
+		// while ((nnodes & (WARPSIZE-1)) != 0) nnodes++;
 		final int warpSize = 64;
 		int numberOfNodes = NUMBER_OF_BODIES * 2;
 		while ((numberOfNodes & (warpSize - 1)) != 0)
@@ -53,7 +57,7 @@ public class SummarizeTreeTest {
 		final float mass[] = new float[numberOfNodes + 1];
 		final int bodyCount[] = new int[numberOfNodes + 1];
 		final int child[] = new int[8 * (numberOfNodes + 1)];
-		
+
 		generateBodies(bodiesX, bodiesY, bodiesZ, mass);
 
 		final CLMemory bodiesXBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, bodiesX);
@@ -177,44 +181,44 @@ public class SummarizeTreeTest {
 		bodiesY[8] = 5;
 		bodiesZ[8] = 5;
 		mass[8] = 1;
-		
+
 		bodiesX[9] = -5;
 		bodiesY[9] = 5;
 		bodiesZ[9] = 5;
 		mass[9] = 1;
-		
+
 		bodiesX[10] = 5;
 		bodiesY[10] = -5;
 		bodiesZ[10] = 5;
 		mass[10] = 1;
-		
+
 		bodiesX[11] = 5;
 		bodiesY[11] = 5;
 		bodiesZ[11] = -5;
 		mass[11] = 1;
-		
+
 		bodiesX[12] = -5;
 		bodiesY[12] = -5;
 		bodiesZ[12] = 5;
 		mass[12] = 1;
-		
+
 		bodiesX[13] = -5;
 		bodiesY[13] = 5;
 		bodiesZ[13] = -5;
 		mass[13] = 1;
-		
+
 		bodiesX[14] = 5;
 		bodiesY[14] = -5;
 		bodiesZ[14] = -5;
 		mass[14] = 1;
-		
+
 		bodiesX[15] = -5;
 		bodiesY[15] = -5;
 		bodiesZ[15] = -5;
 		mass[15] = 1;
 
 		NUMBER_OF_BODIES = 16;
-		
+
 		// bodiesX[9] = 55;
 		// bodiesY[9] = 55;
 		// bodiesZ[9] = -55;
