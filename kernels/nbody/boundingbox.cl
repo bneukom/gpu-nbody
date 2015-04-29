@@ -18,7 +18,7 @@ __global volatile float _maxX[NUM_WORK_GROUPS], _maxY[NUM_WORK_GROUPS], _maxZ[NU
 __attribute__ ((reqd_work_group_size(WORKGROUP_SIZE, 1, 1))) 
 __kernel void boundingBox(
 	__global float* _posX, __global float* _posY, __global float* _posZ, 	
-	__global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child) {
+	__global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child, __global int* _start, __global int* _sorted) {
 
 
 	DEBUG_PRINT(("- Info Boundingbox -\n"));
@@ -176,6 +176,7 @@ __kernel void boundingBox(
 			_posY[NUMBER_OF_NODES] = rootY;
 			_posZ[NUMBER_OF_NODES] = rootZ;
 			_mass[NUMBER_OF_NODES] = -1.0f;
+			_start[NUMBER_OF_NODES] = 0;
 			
 
 			#pragma unroll NUMBER_OF_CELLS

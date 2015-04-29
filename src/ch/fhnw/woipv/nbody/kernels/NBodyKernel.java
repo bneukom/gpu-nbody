@@ -15,7 +15,7 @@ public interface NBodyKernel {
 	public default void execute(final CLContext context, final CLCommandQueue commandQueue, 
 			final CLMemory bodiesXBuffer, final CLMemory bodiesYBuffer, final CLMemory bodiesZBuffer, 
 			final CLMemory blockCountBuffer, final CLMemory radiusBuffer, final CLMemory bottomBuffer, final CLMemory massBuffer,
-			final CLMemory childBuffer, CLMemory bodyCountBuffer, int numberOfBodies, int globalWorkSize, int localWorkSize, int numWorkGroups, int numberOfNodes, int warpSize,
+			final CLMemory childBuffer, CLMemory bodyCountBuffer, CLMemory startBuffer, CLMemory sortedBuffer, int numberOfBodies, int globalWorkSize, int localWorkSize, int numWorkGroups, int numberOfNodes, int warpSize,
 			boolean debug) throws IOException {
 
 		final CLProgram program = context.createProgram(new File(getFileName()));
@@ -39,6 +39,8 @@ public interface NBodyKernel {
 		kernel.addArgument(bottomBuffer);
 		kernel.addArgument(massBuffer);
 		kernel.addArgument(childBuffer);
+		kernel.addArgument(startBuffer);
+		kernel.addArgument(sortedBuffer);
 
 		commandQueue.execute(kernel, 1, globalWorkSize, localWorkSize);
 

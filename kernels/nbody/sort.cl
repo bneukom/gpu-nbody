@@ -15,7 +15,7 @@
 __attribute__ ((reqd_work_group_size(WORKGROUP_SIZE, 1, 1)))
 __kernel void sort(
 	__global float* _posX, __global float* _posY, __global float* _posZ, 
-	__global int* _blockCount, __global int* _bodyCount,  __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child) {
+	__global int* _blockCount, __global int* _bodyCount,  __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child, __global int* _start, __global int* _sorted) {
 
     int bottom = *_bottom;
     int stepSize = get_local_size(0) * get_num_groups(0);
@@ -25,15 +25,18 @@ __kernel void sort(
     while (cell >= bottom) {
         int start = _start[cell];
         if (start >= 0) {
+        
             #pragma unroll NUMBER_OF_CELLS
-            for (int i = 0; i < NUMBER_OF_CELLS; ++i)
-            {
+            for (int i = 0; i < NUMBER_OF_CELLS; ++i) {
                 int ch = _child[NUMBER_OF_CELLS * cell + i];
-                if (ch >= NBODY) { // child is a cell
-                    _start[ch] = start;  /* Set start ID of child */
-                    start += _count[ch]; /* Add #bodies in subtree */
+                if (ch >= NBODIES) { // child is a cell
+                	// set start id of child
+                    _start[ch] = start; 
+                    // Add #bodies in subtree
+                    start += _bodyCount[ch];
                 } else if (ch >= 0) { // child is a body
-                    _sort[start] = ch;   /* Record body in sorted array */
+                	// Record body in sorted array
+                    _sorted[start] = ch;
                     ++start;
                 }
             }

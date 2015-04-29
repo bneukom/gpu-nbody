@@ -53,6 +53,8 @@ public class SummarizeTreeTest {
 		final float mass[] = new float[numberOfNodes + 1];
 		final int bodyCount[] = new int[numberOfNodes + 1];
 		final int child[] = new int[8 * (numberOfNodes + 1)];
+		final int start[] = new int[numberOfNodes + 1];
+		final int sorted[] = new int[numberOfNodes + 1];
 		
 		generateBodies(bodiesX, bodiesY, bodiesZ, mass);
 
@@ -67,10 +69,12 @@ public class SummarizeTreeTest {
 		final CLMemory bodyCountBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, bodyCount);
 
 		final CLMemory childBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, child);
+		final CLMemory startBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, start);
+		final CLMemory sortedBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sorted);
 
 		boundingBoxReduction.execute(context, commandQueue,
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
-				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer,
+				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
 				NUMBER_OF_BODIES, GLOBAL_WORK_SIZE, LOCAL_WORK_SIZE, WORK_GROUPS, numberOfNodes, warpSize, true);
 
 		commandQueue.readBuffer(bottomBuffer);
@@ -85,7 +89,7 @@ public class SummarizeTreeTest {
 
 		buildTree.execute(context, commandQueue,
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
-				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer,
+				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
 				NUMBER_OF_BODIES, GLOBAL_WORK_SIZE, LOCAL_WORK_SIZE, WORK_GROUPS, numberOfNodes, warpSize, true);
 
 		commandQueue.readBuffer(bodiesXBuffer);
@@ -93,7 +97,7 @@ public class SummarizeTreeTest {
 
 		summarizeTree.execute(context, commandQueue,
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
-				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer,
+				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
 				NUMBER_OF_BODIES, GLOBAL_WORK_SIZE, LOCAL_WORK_SIZE, WORK_GROUPS, numberOfNodes, warpSize, true);
 
 		commandQueue.readBuffer(bodiesXBuffer);

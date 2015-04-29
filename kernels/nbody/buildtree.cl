@@ -12,7 +12,7 @@
 __attribute__ ((reqd_work_group_size(WORKGROUP_SIZE, 1, 1)))
 __kernel void buildTree(
 	__global float* _posX, __global float* _posY, __global float* _posZ, 
-	__global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child) {
+	__global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child, __global int* _start, __global int* _sorted) {
 
     int localMaxDepth = 1;
 	DEBUG_PRINT(("- Info Buildtree -\n"));
@@ -120,9 +120,11 @@ __kernel void buildTree(
 						float z = ((childPath >> 2) & 1) * currentR;
               
                         currentR *= 0.5f;
-						
+
+						// reset						
 						_mass[cell] = -1.0f;
-						// TODO StartD ???
+						_start[cell] = -1;
+
                         x = _posX[cell] = _posX[node] - currentR + x;
                         y = _posY[cell] = _posY[node] - currentR + y;
                         z = _posZ[cell] = _posZ[node] - currentR + z;

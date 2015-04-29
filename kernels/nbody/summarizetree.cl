@@ -15,7 +15,7 @@
 __attribute__ ((reqd_work_group_size(WORKGROUP_SIZE, 1, 1)))
 __kernel void summarizeTree(
 	__global float* _posX, __global float* _posY, __global float* _posZ, 
-	__global int* _blockCount, __global int* _bodyCount,  __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child) {
+	__global int* _blockCount, __global int* _bodyCount,  __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child, __global int* _start, __global int* _sorted) {
 	
 	// TODO
 	__local volatile int localChild[WORKGROUP_SIZE * NUMBER_OF_CELLS];
@@ -88,16 +88,18 @@ __kernel void summarizeTree(
 						if (child >= NBODIES) {
 							cellBodyCount += _bodyCount[child] - 1;
 						}
-						
+
+						atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE, memory_order_seq_cst, memory_scope_device);
 						cellMass += mass;
 						centerX += _posX[child] * mass;
 						centerY += _posY[child] * mass;
 						centerZ += _posZ[child] * mass;
+		
 					}
 					usedChildIndex++;
 		    	}		    	
 		    }
-		
+
 			cellBodyCount += usedChildIndex;
 	
 		}
@@ -107,8 +109,9 @@ __kernel void summarizeTree(
 			do {
 				int child = localChild[(missing - 1) * WORKGROUP_SIZE + get_local_id(0)];
 				DEBUG_PRINT(("\t\tchild: %d\n", child));
+
 				mass = _mass[child];
-				
+						
 				// Body children can never be missing, so this is a cell
 				if (mass >= 0.0f) {
 					--missing;
@@ -140,7 +143,7 @@ __kernel void summarizeTree(
 			_posZ[node] = centerZ * mass;
 			
 			// make sure data is visible before setting mass
-			atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE, memory_order_seq_cst, memory_scope_device);
+			atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE, memory_order_seq_cst, memory_scope_device);
 		
 			_mass[node] = cellMass;
 			

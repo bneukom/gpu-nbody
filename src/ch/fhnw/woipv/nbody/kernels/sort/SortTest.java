@@ -4,43 +4,42 @@ import static org.jocl.CL.*;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Random;
 
 import net.benjaminneukom.oocl.cl.CL20;
 import net.benjaminneukom.oocl.cl.CLCommandQueue;
 import net.benjaminneukom.oocl.cl.CLContext;
 import net.benjaminneukom.oocl.cl.CLDevice;
 import net.benjaminneukom.oocl.cl.CLMemory;
-import net.benjaminneukom.oocl.cl.CLProgram.BuildOption;
 import ch.fhnw.woipv.nbody.kernels.boundsReduction.BoundingBoxReduction;
 import ch.fhnw.woipv.nbody.kernels.buildTree.BuildTree;
+import ch.fhnw.woipv.nbody.kernels.summarizeTree.SummarizeTree;
 
 public class SortTest {
+	// TODO how to determine these values?
+	private static final int WORK_GROUPS = 1; // THREADS (for now all the same)
+	private static final int FACTORS = 1; // FACTORS (for now all the same)
 
-	private static final BuildOption DEBUG = new BuildOption("-D DEBUG2");
-
-	private static final int WORK_GROUPS = 8;
-
-	// TODO must be power of two?
-	private static final int LOCAL_WORK_SIZE = 8;
-	private static final int GLOBAL_WORK_SIZE = WORK_GROUPS * LOCAL_WORK_SIZE;
-
-	// TODO must this be a multiple of global worksize?
-	private static int NUMBER_OF_BODIES = 4;
-	private static final float BODIES_RANGE = 1e3f;
+	private static int bodies = 512;
 
 	public static void main(String[] args) throws IOException {
 		final BoundingBoxReduction boundingBoxReduction = new BoundingBoxReduction();
 		final BuildTree buildTree = new BuildTree();
-		final Sort summarizeTree = new Sort();
+		final SummarizeTree summarizeTree = new SummarizeTree();
+		final Sort sort = new Sort();
 
 		final CLDevice device = CL20.createDevice();
-		
-		// TODO blocks are ComputeUnits
-		// nnodes = nbodies * 2;
-		// if (nnodes < 1024*blocks) nnodes = 1024*blocks;
-		// while ((nnodes & (WARPSIZE-1)) != 0) nnodes++;
-		final int warpSize = 64;
-		int numberOfNodes = NUMBER_OF_BODIES * 2;
+
+		final int maxComputeUnits = (int)device.getLong(CL_DEVICE_MAX_COMPUTE_UNITS);
+//		final int maxComputeUnits = 1;
+
+		final int global = maxComputeUnits * WORK_GROUPS * FACTORS;
+		final int local = WORK_GROUPS;
+
+		int numberOfNodes = bodies * 2;
+		final int warpSize = 1;
+		if (numberOfNodes < 1024 * maxComputeUnits)
+			numberOfNodes = 1024 * maxComputeUnits;
 		while ((numberOfNodes & (warpSize - 1)) != 0)
 			++numberOfNodes;
 
@@ -57,8 +56,11 @@ public class SortTest {
 		final float mass[] = new float[numberOfNodes + 1];
 		final int bodyCount[] = new int[numberOfNodes + 1];
 		final int child[] = new int[8 * (numberOfNodes + 1)];
+		final int start[] = new int[numberOfNodes + 1];
+		final int sorted[] = new int[numberOfNodes + 1];
 
-		generateBodies(bodiesX, bodiesY, bodiesZ, mass);
+		generateRandomBodies(bodiesX, bodiesY, bodiesZ, mass);
+		// generateBodies(bodiesX, bodiesY, bodiesZ, mass);
 
 		final CLMemory bodiesXBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, bodiesX);
 		final CLMemory bodiesYBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, bodiesY);
@@ -71,11 +73,13 @@ public class SortTest {
 		final CLMemory bodyCountBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, bodyCount);
 
 		final CLMemory childBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, child);
+		final CLMemory startBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, start);
+		final CLMemory sortedBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, sorted);
 
 		boundingBoxReduction.execute(context, commandQueue,
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
-				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer,
-				NUMBER_OF_BODIES, GLOBAL_WORK_SIZE, LOCAL_WORK_SIZE, WORK_GROUPS, numberOfNodes, warpSize, true);
+				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
+				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, true);
 
 		commandQueue.readBuffer(bottomBuffer);
 		commandQueue.readBuffer(childBuffer);
@@ -89,16 +93,36 @@ public class SortTest {
 
 		buildTree.execute(context, commandQueue,
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
-				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer,
-				NUMBER_OF_BODIES, GLOBAL_WORK_SIZE, LOCAL_WORK_SIZE, WORK_GROUPS, numberOfNodes, warpSize, true);
+				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
+				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, true);
 
 		commandQueue.readBuffer(bodiesXBuffer);
+		commandQueue.readBuffer(bodiesYBuffer);
+		commandQueue.readBuffer(bodiesZBuffer);
+		commandQueue.readBuffer(childBuffer);
+
 		System.out.println("bodiesX[]: " + Arrays.toString(bodiesX));
+		System.out.println("bodiesY[]: " + Arrays.toString(bodiesY));
+		System.out.println("bodiesZ[]: " + Arrays.toString(bodiesZ));
+
+		int n = numNodes;
+		for (int i = 8 * (numberOfNodes + 1) - 1; i > 0; i -= 8) {
+			System.out.print(n-- + ": " + "[" + child[i - 7] + ", " + child[i - 6] + ", " + child[i - 5] + ", " + child[i - 4] + ", " + child[i - 3] + ", " + child[i - 2]
+					+ ", " + child[i - 1] + ", " + child[i - 0] + "]");
+			System.out.println();
+		}
 
 		summarizeTree.execute(context, commandQueue,
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
-				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer,
-				NUMBER_OF_BODIES, GLOBAL_WORK_SIZE, LOCAL_WORK_SIZE, WORK_GROUPS, numberOfNodes, warpSize, true);
+				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer,
+				childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
+				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, true);
+
+		sort.execute(context, commandQueue,
+				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
+				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer,
+				childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
+				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, true);
 
 		commandQueue.readBuffer(bodiesXBuffer);
 		commandQueue.readBuffer(bodiesYBuffer);
@@ -109,28 +133,33 @@ public class SortTest {
 		commandQueue.readBuffer(massBuffer);
 		commandQueue.readBuffer(childBuffer);
 		commandQueue.readBuffer(bodyCountBuffer);
+		commandQueue.readBuffer(sortedBuffer);
+		commandQueue.readBuffer(startBuffer);
 
+		n = numberOfNodes;
 		for (int i = 8 * (numberOfNodes + 1) - 1; i > 0; i -= 8) {
-			System.out.print(numNodes-- + ": " + "[" + child[i - 7] + ", " + child[i - 6] + ", " + child[i - 5] + ", " + child[i - 4] + ", " + child[i - 3] + ", " + child[i - 2]
+			System.out.print(n-- + ": " + "[" + child[i - 7] + ", " + child[i - 6] + ", " + child[i - 5] + ", " + child[i - 4] + ", " + child[i - 3] + ", " + child[i - 2]
 					+ ", " + child[i - 1] + ", " + child[i - 0] + "]");
 			System.out.println();
 		}
 
 		System.out.println("bodyCount[]: " + Arrays.toString(bodyCount));
 		System.out.println("mass[]: " + Arrays.toString(mass));
+		System.out.println("sorted[]: " + Arrays.toString(sorted));
+		System.out.println("start[]: " + Arrays.toString(start));
 		System.out.println("bodiesX[]: " + Arrays.toString(bodiesX));
 		System.out.println("bodiesY[]: " + Arrays.toString(bodiesY));
 		System.out.println("bodiesZ[]: " + Arrays.toString(bodiesZ));
-
 	}
 
 	private static void generateRandomBodies(float[] bodiesX, float[] bodiesY, float[] bodiesZ, float[] mass) {
-		// final Random random = new Random();
-		// for (int bodyIndex = 0; bodyIndex < NUMBER_OF_BODIES; ++bodyIndex) {
-		// bodiesX[bodyIndex] = (random.nextFloat() - 0.5f) * BODIES_RANGE;
-		// bodiesY[bodyIndex] = (random.nextFloat() - 0.5f) * BODIES_RANGE;
-		// bodiesZ[bodyIndex] = (random.nextFloat() - 0.5f) * BODIES_RANGE;
-		// }
+		final Random random = new Random();
+		for (int bodyIndex = 0; bodyIndex < bodies; ++bodyIndex) {
+			bodiesX[bodyIndex] = (float) ((random.nextFloat() - 0.5f) * 1e9);
+			bodiesY[bodyIndex] = (float) ((random.nextFloat() - 0.5f) * 1e9);
+			bodiesZ[bodyIndex] = (float) ((random.nextFloat() - 0.5f) * 1e9);
+			mass[bodyIndex] = 1;
+		}
 	}
 
 	private static void generateBodies(float[] bodiesX, float[] bodiesY, float[] bodiesZ, float[] mass) {
@@ -217,7 +246,7 @@ public class SortTest {
 		bodiesZ[15] = -5;
 		mass[15] = 1;
 
-		NUMBER_OF_BODIES = 16;
+		bodies = 16;
 
 		// bodiesX[9] = 55;
 		// bodiesY[9] = 55;
