@@ -20,7 +20,7 @@ public class SortTest {
 	private static final int WORK_GROUPS = 1; // THREADS (for now all the same)
 	private static final int FACTORS = 1; // FACTORS (for now all the same)
 
-	private static int bodies = 512;
+	private static int bodies = 1024;
 
 	public static void main(String[] args) throws IOException {
 		final BoundingBoxReduction boundingBoxReduction = new BoundingBoxReduction();
@@ -79,7 +79,7 @@ public class SortTest {
 		boundingBoxReduction.execute(context, commandQueue,
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
 				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
-				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, true);
+				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, false);
 
 		commandQueue.readBuffer(bottomBuffer);
 		commandQueue.readBuffer(childBuffer);
@@ -94,7 +94,7 @@ public class SortTest {
 		buildTree.execute(context, commandQueue,
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
 				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
-				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, true);
+				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, false);
 
 		commandQueue.readBuffer(bodiesXBuffer);
 		commandQueue.readBuffer(bodiesYBuffer);
@@ -116,13 +116,13 @@ public class SortTest {
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
 				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer,
 				childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
-				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, true);
+				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, false);
 
 		sort.execute(context, commandQueue,
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
 				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer,
 				childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
-				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, true);
+				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, false);
 
 		commandQueue.readBuffer(bodiesXBuffer);
 		commandQueue.readBuffer(bodiesYBuffer);
