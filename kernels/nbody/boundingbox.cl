@@ -17,8 +17,11 @@ __global volatile float _maxX[NUM_WORK_GROUPS], _maxY[NUM_WORK_GROUPS], _maxZ[NU
 */
 __attribute__ ((reqd_work_group_size(WORKGROUP_SIZE, 1, 1))) 
 __kernel void boundingBox(
-	__global float* _posX, __global float* _posY, __global float* _posZ, 	
-	__global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child, __global int* _start, __global int* _sorted) {
+	__global float* _posX, __global float* _posY, __global float* _posZ,
+	__global float* _velX, __global float* _velY, __global float* _velZ, 
+	__global float* _accX, __global float* _accY, __global float* _accZ, 	
+	__global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global int* _maxDepth,
+	__global int* _bottom, __global float* _mass, __global int* _child, __global int* _start, __global int* _sorted) {
 
 
 	DEBUG_PRINT(("- Info Boundingbox -\n"));
@@ -28,18 +31,19 @@ __kernel void boundingBox(
 
     const int localId = get_local_id(0);
 	const int groupId = get_group_id(0);
+	const int globalId = get_global_id(0);
 
 	DEBUG_PRINT(("get_num_groups = %d\n", get_num_groups(0)));
 	DEBUG_PRINT(("get_local_size = %d\n", get_local_size(0)));
 	DEBUG_PRINT(("group_id = %d\n", groupId));
 	DEBUG_PRINT(("local_id = %d\n", localId));
-
+	DEBUG_PRINT(("global_id = %d\n", globalId));
+	
 	// initialize with valid data (in case #bodies < #threads)
 	if (localId == 0) { 
 		DEBUG_PRINT(("_posX[0] = %d\n", _posX[0]));
 		DEBUG_PRINT(("_posY[0] = %d\n", _posY[0]));
 		DEBUG_PRINT(("_posZ[0] = %d\n", _posZ[0]));
-		
 		
 		localMinX[0] = _posX[0];
 		localMinY[0] = _posY[0];
@@ -87,7 +91,6 @@ __kernel void boundingBox(
 	}
 
 	// TODO What kind of input size is needed for this to work?
-
 
 	for (int offset  = get_local_size(0) / 2; offset > 0; offset  /= 2) {
 		DEBUG_PRINT(("offset: %d (%d, %d)\n", offset, get_group_id(0), get_local_id(0))); 

@@ -1,4 +1,4 @@
-package ch.fhnw.woipv.nbody.kernels.sort;
+package ch.fhnw.woipv.nbody.kernels.calculateForce;
 
 import static org.jocl.CL.*;
 
@@ -15,24 +15,23 @@ import ch.fhnw.woipv.nbody.kernels.boundsReduction.BoundingBoxReduction;
 import ch.fhnw.woipv.nbody.kernels.buildTree.BuildTree;
 import ch.fhnw.woipv.nbody.kernels.summarizeTree.SummarizeTree;
 
-public class SortTest {
-	// TODO for cpus this needs to be one due to no lock stepping
+public class CalculateForceTest {
 	// TODO how to determine these values?
-	private static final int WORK_GROUPS = 4; // THREADS (for now all the same)
+	private static final int WORK_GROUPS = 1; // THREADS (for now all the same)
 	private static final int FACTORS = 1; // FACTORS (for now all the same)
 
-	private static int bodies = 256;
+	private static int bodies = 32;
 
 	public static void main(String[] args) throws IOException {
 		final BoundingBoxReduction boundingBoxReduction = new BoundingBoxReduction();
 		final BuildTree buildTree = new BuildTree();
 		final SummarizeTree summarizeTree = new SummarizeTree();
-		final Sort sort = new Sort();
+		final CalculateForce sort = new CalculateForce();
 
 		final CLDevice device = CL20.createDevice();
 
-		final int maxComputeUnits = (int)device.getLong(CL_DEVICE_MAX_COMPUTE_UNITS);
-//		final int maxComputeUnits = 1;
+//		final int maxComputeUnits = (int)device.getLong(CL_DEVICE_MAX_COMPUTE_UNITS);
+		final int maxComputeUnits = 1;
 
 		final int global = maxComputeUnits * WORK_GROUPS * FACTORS;
 		final int local = WORK_GROUPS;
@@ -50,14 +49,6 @@ public class SortTest {
 		final float bodiesX[] = new float[numberOfNodes + 1];
 		final float bodiesY[] = new float[numberOfNodes + 1];
 		final float bodiesZ[] = new float[numberOfNodes + 1];
-		
-		final float velX[] = new float[numberOfNodes + 1];
-		final float velY[] = new float[numberOfNodes + 1];
-		final float velZ[] = new float[numberOfNodes + 1];
-
-		final float accX[] = new float[numberOfNodes + 1];
-		final float accY[] = new float[numberOfNodes + 1];
-		final float accZ[] = new float[numberOfNodes + 1];
 
 		final int blockCount[] = new int[1];
 		final float radius[] = new float[1];
@@ -67,7 +58,6 @@ public class SortTest {
 		final int child[] = new int[8 * (numberOfNodes + 1)];
 		final int start[] = new int[numberOfNodes + 1];
 		final int sorted[] = new int[numberOfNodes + 1];
-		final int maxDepth[] = new int[1];
 
 		generateRandomBodies(bodiesX, bodiesY, bodiesZ, mass);
 		// generateBodies(bodiesX, bodiesY, bodiesZ, mass);
@@ -75,18 +65,9 @@ public class SortTest {
 		final CLMemory bodiesXBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, bodiesX);
 		final CLMemory bodiesYBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, bodiesY);
 		final CLMemory bodiesZBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, bodiesZ);
-		
-		final CLMemory velXBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, velX);
-		final CLMemory velYBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, velY);
-		final CLMemory velZBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, velZ);
-		
-		final CLMemory accXBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, accX);
-		final CLMemory accYBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, accY);
-		final CLMemory accZBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, accZ);
 
 		final CLMemory blockCountBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, blockCount);
 		final CLMemory radiusBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, radius);
-		final CLMemory maxDepthBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, maxDepth);
 		final CLMemory bottomBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, bottom);
 		final CLMemory massBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, mass);
 		final CLMemory bodyCountBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, bodyCount);
@@ -97,9 +78,7 @@ public class SortTest {
 
 		boundingBoxReduction.execute(context, commandQueue,
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
-				velXBuffer, velYBuffer, velZBuffer,
-				accXBuffer, accYBuffer, accZBuffer,
-				blockCountBuffer, radiusBuffer, maxDepthBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
+				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
 				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, true);
 
 		commandQueue.readBuffer(bottomBuffer);
@@ -114,9 +93,7 @@ public class SortTest {
 
 		buildTree.execute(context, commandQueue,
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
-				velXBuffer, velYBuffer, velZBuffer,
-				accXBuffer, accYBuffer, accZBuffer,
-				blockCountBuffer, radiusBuffer, maxDepthBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
+				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
 				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, false);
 
 		commandQueue.readBuffer(bodiesXBuffer);
@@ -137,9 +114,8 @@ public class SortTest {
 
 		summarizeTree.execute(context, commandQueue,
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
-				velXBuffer, velYBuffer, velZBuffer,
-				accXBuffer, accYBuffer, accZBuffer,
-				blockCountBuffer, radiusBuffer, maxDepthBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
+				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer,
+				childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
 				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, false);
 		
 		commandQueue.readBuffer(bodyCountBuffer);
@@ -147,10 +123,9 @@ public class SortTest {
 		
 		sort.execute(context, commandQueue,
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
-				velXBuffer, velYBuffer, velZBuffer,
-				accXBuffer, accYBuffer, accZBuffer,
-				blockCountBuffer, radiusBuffer, maxDepthBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
-				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, false);
+				blockCountBuffer, radiusBuffer, bottomBuffer, massBuffer,
+				childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
+				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, true);
 
 		commandQueue.readBuffer(bodiesXBuffer);
 		commandQueue.readBuffer(bodiesYBuffer);

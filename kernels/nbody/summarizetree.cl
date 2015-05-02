@@ -14,8 +14,11 @@
 
 __attribute__ ((reqd_work_group_size(WORKGROUP_SIZE, 1, 1)))
 __kernel void summarizeTree(
-	__global float* _posX, __global float* _posY, __global float* _posZ, 
-	__global int* _blockCount, __global int* _bodyCount,  __global float* _radius, __global int* _bottom, __global float* _mass, __global int* _child, __global int* _start, __global int* _sorted) {
+	__global float* _posX, __global float* _posY, __global float* _posZ,
+	__global float* _velX, __global float* _velY, __global float* _velZ, 
+	__global float* _accX, __global float* _accY, __global float* _accZ,  
+	__global int* _blockCount, __global int* _bodyCount,  __global float* _radius, __global int* _maxDepth,
+	__global int* _bottom, __global volatile atomic_float* _mass, __global volatile int* _child, __global volatile int* _start, __global volatile int* _sorted) {
 	
 	// TODO
 	__local volatile int localChild[WORKGROUP_SIZE * NUMBER_OF_CELLS];
@@ -28,11 +31,16 @@ __kernel void summarizeTree(
 	DEBUG_PRINT(("NUMBER_OF_NODES: %d\n", NUMBER_OF_NODES));
 
 	// TODO small work group sizes DO NOT WORK WITH this?!
-    // align to warp size
-    int node = (bottom & (-WARPSIZE)) + get_global_id(0);
-    if (node < bottom)
-        node += stepSize;
+	// TODO alignment to warp size somehow does not work?!
+	// 		- This might only work on real devices?
 	
+    // align to warp size
+    //int node = (bottom & (-WARPSIZE)) + get_global_id(0);
+    //if (node < bottom)
+    //    node += stepSize;
+    
+    int node = bottom + get_global_id(0);
+    
 	DEBUG_PRINT(("start node: %d\n", node));
 	
 	int missing = 0;
@@ -75,21 +83,24 @@ __kernel void summarizeTree(
 					// Cache missing children
 					localChild[WORKGROUP_SIZE * missing + get_local_id(0)] = child;
 					
-					mass = _mass[child];
+					mass = atomic_load_explicit(&_mass[child], memory_order_seq_cst, memory_scope_device);
+					//mass = _mass[child];
 					DEBUG_PRINT(("\t\t\tmass[child]: %f\n", mass));
 					DEBUG_PRINT(("\t\t\t\tchild: %d\n", child));
 
 					++missing;
 					
 					if (mass >= 0.0f) {
+						DEBUG_PRINT(("\t\t\tchild is ready\n"));
 						// child is ready	
 						--missing;
 						
 						if (child >= NBODIES) {
+							DEBUG_PRINT(("\t\t\tcellBodyCount1: %d\n", cellBodyCount));
 							cellBodyCount += _bodyCount[child] - 1;
+							DEBUG_PRINT(("\t\t\tcellBodyCount2: %d\n", cellBodyCount));
 						}
 
-						atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE, memory_order_seq_cst, memory_scope_device);
 						cellMass += mass;
 						centerX += _posX[child] * mass;
 						centerY += _posY[child] * mass;
@@ -100,33 +111,41 @@ __kernel void summarizeTree(
 		    	}		    	
 		    }
 
+			// mem_fence(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 			cellBodyCount += usedChildIndex;
 	
 		}
 	
 		if (missing != 0) {
-			DEBUG_PRINT(("\tmissing is not zero - work missing children\n"));
+			DEBUG_PRINT(("\tmissing(%d) is not zero - work missing children\n", missing));
 			do {
 				int child = localChild[(missing - 1) * WORKGROUP_SIZE + get_local_id(0)];
 				DEBUG_PRINT(("\t\tchild: %d\n", child));
-
-				mass = _mass[child];
+				
+				//mass = _mass[child];
+				mass = atomic_load_explicit(&_mass[child], memory_order_seq_cst, memory_scope_device);
+				
+				DEBUG_PRINT(("\t\tmass: %f\n", mass));
+				DEBUG_PRINT(("\t\tmass >= 0.0f: %s\n", (mass >= 0 ? "true" : "false")));
 						
 				// Body children can never be missing, so this is a cell
 				if (mass >= 0.0f) {
 					--missing;
-					
+					DEBUG_PRINT(("\t\t\tmissing: %d\n", missing));
 					if (child >= NBODIES) {
+						DEBUG_PRINT(("\t\t\tcellBodyCount1: %d\n", cellBodyCount));
 						cellBodyCount += _bodyCount[child] - 1;
+						DEBUG_PRINT(("\t\t\tcellBodyCount2: %d\n", cellBodyCount));
 					}
 					
 					cellMass += mass;
 					centerX += _posX[child] * mass;
 					centerY += _posY[child] * mass;
 					centerZ += _posZ[child] * mass;
-
 				}
 			} while ((mass >= 0.0f) && (missing != 0));
+			
+			DEBUG_PRINT(("\tdo while done mass: %f (%d, %d)\n", mass, get_local_id(0), get_global_id(0)));
 		}
 	
 		if (missing == 0) {
@@ -145,7 +164,8 @@ __kernel void summarizeTree(
 			// make sure data is visible before setting mass
 			atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE, memory_order_seq_cst, memory_scope_device);
 		
-			_mass[node] = cellMass;
+			atomic_store_explicit (&_mass[node], cellMass, memory_order_seq_cst, memory_scope_device);	
+			//_mass[node] = cellMass;
 			
 			node += stepSize; // next cell
 			DEBUG_PRINT(("\t\tnext node: %d\n", node));

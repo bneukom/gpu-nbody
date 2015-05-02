@@ -14,9 +14,9 @@ public interface NBodyKernel {
 
 	public default void execute(final CLContext context, final CLCommandQueue commandQueue, 
 			final CLMemory bodiesXBuffer, final CLMemory bodiesYBuffer, final CLMemory bodiesZBuffer, 
-			final CLMemory blockCountBuffer, final CLMemory radiusBuffer, final CLMemory bottomBuffer, final CLMemory massBuffer,
-			final CLMemory childBuffer, CLMemory bodyCountBuffer, CLMemory startBuffer, CLMemory sortedBuffer, int numberOfBodies, int globalWorkSize, int localWorkSize, int numWorkGroups, int numberOfNodes, int warpSize,
-			boolean debug) throws IOException {
+			CLMemory velXBuffer, CLMemory velYBuffer, CLMemory velZBuffer, CLMemory accXBuffer,
+			CLMemory accYBuffer, CLMemory accZBuffer, final CLMemory blockCountBuffer, final CLMemory radiusBuffer, CLMemory maxDepthBuffer, final CLMemory bottomBuffer, final CLMemory massBuffer, final CLMemory childBuffer, CLMemory bodyCountBuffer, CLMemory startBuffer,
+			CLMemory sortedBuffer, int numberOfBodies, int globalWorkSize, int localWorkSize, int numWorkGroups, int numberOfNodes, int warpSize, boolean debug) throws IOException {
 
 		final CLProgram program = context.createProgram(new File(getFileName()));
 
@@ -32,10 +32,19 @@ public interface NBodyKernel {
 		kernel.addArgument(bodiesXBuffer);
 		kernel.addArgument(bodiesYBuffer);
 		kernel.addArgument(bodiesZBuffer);
+		
+		kernel.addArgument(velXBuffer);
+		kernel.addArgument(velYBuffer);
+		kernel.addArgument(velZBuffer);
+
+		kernel.addArgument(accXBuffer);
+		kernel.addArgument(accYBuffer);
+		kernel.addArgument(accZBuffer);
 
 		kernel.addArgument(blockCountBuffer);
 		kernel.addArgument(bodyCountBuffer);
 		kernel.addArgument(radiusBuffer);
+		kernel.addArgument(maxDepthBuffer);
 		kernel.addArgument(bottomBuffer);
 		kernel.addArgument(massBuffer);
 		kernel.addArgument(childBuffer);
