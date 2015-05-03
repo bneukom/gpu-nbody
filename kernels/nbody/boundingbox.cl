@@ -20,7 +20,7 @@ __kernel void boundingBox(
 	__global float* _posX, __global float* _posY, __global float* _posZ,
 	__global float* _velX, __global float* _velY, __global float* _velZ, 
 	__global float* _accX, __global float* _accY, __global float* _accZ, 	
-	__global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global int* _maxDepth,
+	__global int* _step, __global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global int* _maxDepth,
 	__global int* _bottom, __global float* _mass, __global int* _child, __global int* _start, __global int* _sorted) {
 
 
@@ -181,10 +181,12 @@ __kernel void boundingBox(
 			_mass[NUMBER_OF_NODES] = -1.0f;
 			_start[NUMBER_OF_NODES] = 0;
 			
-
+			
+			// root
 			#pragma unroll NUMBER_OF_CELLS
 			for (int i = 0; i < NUMBER_OF_CELLS; i++) _child[NUMBER_OF_NODES * NUMBER_OF_CELLS + i] = -1;
 
+			(*_step)++;
         }
 		
     }

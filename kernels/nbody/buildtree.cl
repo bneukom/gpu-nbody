@@ -14,8 +14,8 @@ __kernel void buildTree(
 	__global float* _posX, __global float* _posY, __global float* _posZ,
 	__global float* _velX, __global float* _velY, __global float* _velZ, 
 	__global float* _accX, __global float* _accY, __global float* _accZ, 
-	__global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global int* _maxDepth,
-	__global int* _bottom, __global float* _mass, __global int* _child, __global int* _start, __global int* _sorted) {
+	__global int* _step, __global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global volatile int* _maxDepth,
+	__global int* _bottom, __global volatile float* _mass, __global int* _child, __global int* _start, __global int* _sorted) {
 
     int localMaxDepth = 1;
 	DEBUG_PRINT(("- Info Buildtree -\n"));
@@ -170,10 +170,11 @@ __kernel void buildTree(
 					// push out 
 					atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE, memory_order_seq_cst, memory_scope_device);
 		
+					// TODO this needs to be an atomic set in order for other threads to see it correctly??
                     _child[locked] = patch;
                 }
                 
-                // TODO is this needed
+                // TODO is this needed?
 				atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE, memory_order_seq_cst, memory_scope_device);
 		
                 localMaxDepth = max(depth, localMaxDepth);
@@ -189,6 +190,5 @@ __kernel void buildTree(
 		
     }
 
-	// TODO MAX DEPTH
-    // (void) atom_max(_maxDepth, localMaxDepth);
+    atom_max(_maxDepth, localMaxDepth);
 }

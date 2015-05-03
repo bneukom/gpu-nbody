@@ -17,7 +17,7 @@ __kernel void summarizeTree(
 	__global float* _posX, __global float* _posY, __global float* _posZ,
 	__global float* _velX, __global float* _velY, __global float* _velZ, 
 	__global float* _accX, __global float* _accY, __global float* _accZ,  
-	__global int* _blockCount, __global int* _bodyCount,  __global float* _radius, __global int* _maxDepth,
+	__global int* _step, __global int* _blockCount, __global int* _bodyCount,  __global float* _radius, __global int* _maxDepth,
 	__global int* _bottom, __global volatile atomic_float* _mass, __global volatile int* _child, __global volatile int* _start, __global volatile int* _sorted) {
 	
 	// TODO

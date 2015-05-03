@@ -14,9 +14,11 @@ public interface NBodyKernel {
 
 	public default void execute(final CLContext context, final CLCommandQueue commandQueue, 
 			final CLMemory bodiesXBuffer, final CLMemory bodiesYBuffer, final CLMemory bodiesZBuffer, 
-			CLMemory velXBuffer, CLMemory velYBuffer, CLMemory velZBuffer, CLMemory accXBuffer,
-			CLMemory accYBuffer, CLMemory accZBuffer, final CLMemory blockCountBuffer, final CLMemory radiusBuffer, CLMemory maxDepthBuffer, final CLMemory bottomBuffer, final CLMemory massBuffer, final CLMemory childBuffer, CLMemory bodyCountBuffer, CLMemory startBuffer,
-			CLMemory sortedBuffer, int numberOfBodies, int globalWorkSize, int localWorkSize, int numWorkGroups, int numberOfNodes, int warpSize, boolean debug) throws IOException {
+			final CLMemory velXBuffer, final CLMemory velYBuffer, 
+			final CLMemory velZBuffer, final CLMemory accXBuffer,
+			final CLMemory accYBuffer, final CLMemory accZBuffer, 
+			final CLMemory stepBuffer, final CLMemory blockCountBuffer, final CLMemory radiusBuffer, final CLMemory maxDepthBuffer, final CLMemory bottomBuffer, final CLMemory massBuffer, final CLMemory childBuffer, final CLMemory bodyCountBuffer, final CLMemory startBuffer,
+			final CLMemory sortedBuffer, final int numberOfBodies, final int globalWorkSize, final int localWorkSize, final int numWorkGroups, final int numberOfNodes, final int warpSize, final boolean debug) throws IOException {
 
 		final CLProgram program = context.createProgram(new File(getFileName()));
 
@@ -41,6 +43,7 @@ public interface NBodyKernel {
 		kernel.addArgument(accYBuffer);
 		kernel.addArgument(accZBuffer);
 
+		kernel.addArgument(stepBuffer);
 		kernel.addArgument(blockCountBuffer);
 		kernel.addArgument(bodyCountBuffer);
 		kernel.addArgument(radiusBuffer);
@@ -58,19 +61,19 @@ public interface NBodyKernel {
 
 	public static final BuildOption DEBUG = new BuildOption("-D DEBUG");
 
-	public default BuildOption numberOfNodes(int numberOfNodes) {
+	public default BuildOption numberOfNodes(final int numberOfNodes) {
 		return new BuildOption("-D NUMBER_OF_NODES=" + numberOfNodes);
 	}
 
-	public default BuildOption numberOfBodies(int nbodies) {
+	public default BuildOption numberOfBodies(final int nbodies) {
 		return new BuildOption("-D NBODIES=" + nbodies);
 	}
 
-	public default BuildOption workgroupSize(int localWorkSize) {
+	public default BuildOption workgroupSize(final int localWorkSize) {
 		return new BuildOption("-D WORKGROUP_SIZE=" + localWorkSize);
 	}
 
-	public default BuildOption numberOfWorkgroups(int numWorkGroups) {
+	public default BuildOption numberOfWorkgroups(final int numWorkGroups) {
 		return new BuildOption("-D NUM_WORK_GROUPS=" + numWorkGroups);
 	}
 

@@ -1,4 +1,4 @@
-package ch.fhnw.woipv.nbody.kernels.calculateForce;
+package ch.fhnw.woipv.nbody.kernels.integrate;
 
 import static org.jocl.CL.*;
 
@@ -13,10 +13,11 @@ import net.benjaminneukom.oocl.cl.CLDevice;
 import net.benjaminneukom.oocl.cl.CLMemory;
 import ch.fhnw.woipv.nbody.kernels.boundsReduction.BoundingBoxReduction;
 import ch.fhnw.woipv.nbody.kernels.buildTree.BuildTree;
+import ch.fhnw.woipv.nbody.kernels.calculateForce.CalculateForce;
 import ch.fhnw.woipv.nbody.kernels.sort.Sort;
 import ch.fhnw.woipv.nbody.kernels.summarizeTree.SummarizeTree;
 
-public class CalculateForceTest {
+public class IntegrateTest {
 	// TODO for cpus this needs to be one due to no lock stepping
 	// TODO how to determine these values?
 	private static final int WORK_GROUPS = 4; // THREADS (for now all the same)
@@ -30,6 +31,7 @@ public class CalculateForceTest {
 		final SummarizeTree summarizeTree = new SummarizeTree();
 		final Sort sort = new Sort();
 		final CalculateForce force = new CalculateForce();
+		final Integrate integrate = new Integrate();
 
 		final CLDevice device = CL20.createDevice();
 
@@ -161,7 +163,14 @@ public class CalculateForceTest {
 				velXBuffer, velYBuffer, velZBuffer,
 				accXBuffer, accYBuffer, accZBuffer,
 				stepBuffer, blockCountBuffer, radiusBuffer, maxDepthBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
-				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, true);
+				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, false);
+		
+		integrate.execute(context, commandQueue,
+				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
+				velXBuffer, velYBuffer, velZBuffer,
+				accXBuffer, accYBuffer, accZBuffer,
+				stepBuffer, blockCountBuffer, radiusBuffer, maxDepthBuffer, bottomBuffer, massBuffer, childBuffer, bodyCountBuffer, startBuffer, sortedBuffer,
+				bodies, global, local, WORK_GROUPS, numberOfNodes, warpSize, false);
 
 		
 		commandQueue.readBuffer(bodiesXBuffer);

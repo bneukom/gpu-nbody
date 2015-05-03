@@ -4,17 +4,17 @@ import ch.fhnw.woipv.nbody.kernels.NBodyKernel;
 
 public class CalculateForce implements NBodyKernel {
 
-	private static final String BUILD_TREE_KERNEL_FILE = "kernels/nbody/sort.cl";
-	private static final String BUILD_TREE_KERNEL_NAME = "sort";
+	private static final String CALCULATE_FORCE_KERNEL_FILE = "kernels/nbody/calculateforce.cl";
+	private static final String CALCULATE_FORCE_KERNEL_NAME = "calculateForce";
 
 	@Override
 	public String getKernelName() {
-		return BUILD_TREE_KERNEL_NAME;
+		return CALCULATE_FORCE_KERNEL_NAME;
 	}
 
 	@Override
 	public String getFileName() {
-		return BUILD_TREE_KERNEL_FILE;
+		return CALCULATE_FORCE_KERNEL_FILE;
 	}
 
 }
