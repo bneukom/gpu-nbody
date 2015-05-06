@@ -1,11 +1,11 @@
-package ch.fhnw.woipv.test;
+package ch.fhnw.woipv.tests;
 
 import static org.jocl.CL.*;
 
 import java.io.File;
 import java.io.IOException;
 
-import net.benjaminneukom.oocl.cl.CL20;
+import net.benjaminneukom.oocl.cl.OOCL;
 import net.benjaminneukom.oocl.cl.CLCommandQueue;
 import net.benjaminneukom.oocl.cl.CLContext;
 import net.benjaminneukom.oocl.cl.CLDevice;
@@ -20,7 +20,7 @@ public class CLLibTest {
 		final int localWorkSize = 10;
 		final int globalWorkSize = numWorkGroups * localWorkSize;
 
-		final CLDevice device = CL20.createDevice();
+		final CLDevice device = OOCL.createDevice();
 
 		final CLContext context = device.createContext();
 		final CLCommandQueue commandQueue = context.createCommandQueue();

@@ -23,7 +23,6 @@ __kernel void boundingBox(
 	__global int* _step, __global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global int* _maxDepth,
 	__global int* _bottom, __global float* _mass, __global int* _child, __global int* _start, __global int* _sorted) {
 
-
 	DEBUG_PRINT(("- Info Boundingbox -\n"));
 	DEBUG_PRINT(("block_count = %d\n", *_blockCount));
     __local volatile float localMinX[WORKGROUP_SIZE], localMinY[WORKGROUP_SIZE], localMinZ[WORKGROUP_SIZE];
@@ -41,9 +40,9 @@ __kernel void boundingBox(
 	
 	// initialize with valid data (in case #bodies < #threads)
 	if (localId == 0) { 
-		DEBUG_PRINT(("_posX[0] = %d\n", _posX[0]));
-		DEBUG_PRINT(("_posY[0] = %d\n", _posY[0]));
-		DEBUG_PRINT(("_posZ[0] = %d\n", _posZ[0]));
+		DEBUG_PRINT(("_posX[0] = %f\n", _posX[0]));
+		DEBUG_PRINT(("_posY[0] = %f\n", _posY[0]));
+		DEBUG_PRINT(("_posZ[0] = %f\n", _posZ[0]));
 		
 		localMinX[0] = _posX[0];
 		localMinY[0] = _posY[0];
@@ -56,9 +55,9 @@ __kernel void boundingBox(
     localMinY[localId] = localMaxY[localId] = localMinY[0];
     localMinZ[localId] = localMaxZ[localId] = localMinZ[0];
     
-    DEBUG_PRINT(("localMinX[localId] = %d\n", localMinX[localId]));
-	DEBUG_PRINT(("localMinY[localId] = %d\n", localMinY[localId]));
-	DEBUG_PRINT(("localMinZ[localId] = %d\n", localMinZ[localId]));
+    DEBUG_PRINT(("localMinX[localId] = %f\n", localMinX[localId]));
+	DEBUG_PRINT(("localMinY[localId] = %f\n", localMinY[localId]));
+	DEBUG_PRINT(("localMinZ[localId] = %f\n", localMinZ[localId]));
 
 	// scan all bodies
 	// TODO is this get_global_size() ???
@@ -126,6 +125,7 @@ __kernel void boundingBox(
 		barrier(CLK_LOCAL_MEM_FENCE);
     }
 
+	DEBUG_PRINT(("localId: %d\n", localId));
 	
 	// Write block result to global memory
     if (localId == 0) {
@@ -169,9 +169,14 @@ __kernel void boundingBox(
 			const float rootX = 0.5f * (localMinX[0] + localMaxX[0]);
 			const float rootY = 0.5f * (localMinY[0] + localMaxY[0]);
 			const float rootZ = 0.5f * (localMinZ[0] + localMaxZ[0]);
+			
+			DEBUG_PRINT(("rootX: %f\n", rootX));
+			DEBUG_PRINT(("rootY: %f\n", rootY));
+			DEBUG_PRINT(("rootZ: %f\n", rootZ));
 
 			*_radius = 0.5f * fmax(fmax(localMaxX[0]- localMinX[0], localMaxY[0] - localMinY[0]), localMaxZ[0] - localMinZ[0]);
 			*_bottom = NUMBER_OF_NODES;
+			*_blockCount = 0;
 			
 			DEBUG_PRINT(("bottom: %d\n", *_bottom));
 

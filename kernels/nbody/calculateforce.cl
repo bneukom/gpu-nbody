@@ -31,11 +31,11 @@ __kernel void calculateForce(
 	
 	// TODO itolsqd is 1/THETA ?
 	DEBUG_PRINT(("- Info Calculate Force  -\n"));
-	DEBUG_PRINT(("stack size: %d", MAXDEPTH * WORKGROUP_SIZE / WARPSIZE));
-	DEBUG_PRINT(("epsilon %f", EPSILON));
-	DEBUG_PRINT(("theta %f", THETA));
-	DEBUG_PRINT(("MAXDEPTH %d", MAXDEPTH));
-	DEBUG_PRINT(("maxDepth %d", *_maxDepth));
+	DEBUG_PRINT(("stack size: %d\n", MAXDEPTH * WORKGROUP_SIZE / WARPSIZE));
+	DEBUG_PRINT(("epsilon %f\n", EPSILON));
+	DEBUG_PRINT(("theta %f\n", THETA));
+	DEBUG_PRINT(("MAXDEPTH %d\n", MAXDEPTH));
+	DEBUG_PRINT(("maxDepth %d\n", *_maxDepth));
 	
 	if (get_local_id(0) == 0) {
 		float radiusTheta = *_radius / THETA;
@@ -45,7 +45,7 @@ __kernel void calculateForce(
 		}
 		
 		if (*_maxDepth > MAXDEPTH) {
-			printf("ERROR: maxDepth");
+			printf("ERROR: maxDepth\n");
 		}
 	}
 	
