@@ -36,8 +36,8 @@ __kernel void integrate(
 		float velZ = _velZ[i] + deltaVelZ;
 		
 		_posX[i] += velX * TIMESTEP;
-		_posX[i] += velX * TIMESTEP;
-		_posX[i] += velX * TIMESTEP;
+		_posY[i] += velY * TIMESTEP;
+		_posZ[i] += velZ * TIMESTEP;
 		
 		_velX[i] = velX + deltaVelX;
 		_velY[i] = velY + deltaVelY;

@@ -38,15 +38,19 @@ __kernel void calculateForce(
 	DEBUG_PRINT(("maxDepth %d\n", *_maxDepth));
 	
 	if (get_local_id(0) == 0) {
-		float radiusTheta = *_radius / THETA;
-		dq[0] = radiusTheta * radiusTheta; 
-		for (int i = 1; i < *_maxDepth; ++i) {
-			dq[i] = 0.25f * dq[i - 1];		
+		float radius = *_radius; 
+		dq[0] = radius * radius / THETA;
+		
+		int i;
+		for (i = 1; i < *_maxDepth; ++i) {
+			dq[i] = 0.25f * dq[i - 1];	
+			dq[i - 1] += EPSILON;	
 		}
+		dq[i - 1] += EPSILON;
 		
 		if (*_maxDepth > MAXDEPTH) {
 			printf("ERROR: maxDepth\n");
-		}
+		} 
 	}
 	
 	barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
@@ -110,6 +114,7 @@ __kernel void calculateForce(
 						if ((child < NBODIES) || work_group_all(distSquared >= dq[depth])) {
 							float distance = rsqrt(distSquared);
 							float f = _mass[child] * distance * distance * distance;
+							//printf("f: %f\n", f);
 							accX += distX * f;
 							accY += distY * f;
 							accZ += distZ * f;
@@ -127,9 +132,10 @@ __kernel void calculateForce(
 						}
 					} else {
 						depth = max(j, depth -1);
-					
 					}
 				}
+				
+				// done with this level
 				depth--;
 			}
 	
@@ -138,6 +144,8 @@ __kernel void calculateForce(
 				_velX[sortedIndex] += (accX - _accX[sortedIndex]) * TIMESTEP * 0.5f;
 				_velY[sortedIndex] += (accY - _accY[sortedIndex]) * TIMESTEP * 0.5f;
 				_velZ[sortedIndex] += (accZ - _accZ[sortedIndex]) * TIMESTEP * 0.5f;
+				
+				// TODO some sort of barrier?
 			}			
 			
 			_accX[sortedIndex] = accX;

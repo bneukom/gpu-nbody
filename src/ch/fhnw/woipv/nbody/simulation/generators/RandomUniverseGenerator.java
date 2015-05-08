@@ -14,7 +14,7 @@ public class RandomUniverseGenerator implements UniverseGenerator {
 			bodiesX[i + offset] = (float) (Math.random() * range);
 			bodiesY[i + offset] = (float) (Math.random() * range);
 			bodiesZ[i + offset] = (float) (Math.random() * range);
-			mass[i + offset] = 1;
+			mass[i + offset] = 1f / nbodies;
 		}
 	}
 

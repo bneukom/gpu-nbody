@@ -34,7 +34,7 @@ public class CLLibTest {
 		final float tmpArray[] = new float[globalWorkSize];
 		final CLMemory clMemory = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, tmpArray);
 
-		kernel.addArgument(clMemory);
+		kernel.setArguments(clMemory);
 
 		commandQueue.execute(kernel, 1, globalWorkSize, localWorkSize);
 		commandQueue.finish();

@@ -73,7 +73,7 @@ public class GpuNBodySimulation implements NBodySimulation {
 	private CLMemory childBuffer;
 	private CLMemory startBuffer;
 	private CLMemory sortedBuffer;
-	
+
 	private float[] bodiesXArr;
 	private float[] bodiesYArr;
 	private float[] bodiesZArr;
@@ -86,7 +86,7 @@ public class GpuNBodySimulation implements NBodySimulation {
 		this.commandQueue = this.context.createCommandQueue();
 
 		this.maxComputeUnits = (int) device.getLong(CL_DEVICE_MAX_COMPUTE_UNITS);
-//		this.maxComputeUnits = 1;
+		// this.maxComputeUnits = 1;
 
 		this.global = maxComputeUnits * WORK_GROUPS * FACTORS;
 		this.local = WORK_GROUPS;
@@ -98,7 +98,7 @@ public class GpuNBodySimulation implements NBodySimulation {
 		bodiesXArr = new float[numberOfNodes + 1];
 		bodiesYArr = new float[numberOfNodes + 1];
 		bodiesZArr = new float[numberOfNodes + 1];
-		
+
 		bodiesMass = new float[numberOfNodes + 1];
 
 		generator.generate(0, nbodies, bodiesXArr, bodiesYArr, bodiesZArr, bodiesMass);
@@ -151,12 +151,12 @@ public class GpuNBodySimulation implements NBodySimulation {
 	}
 
 	private void setArguments(CLKernel kernel) {
-		kernel.setArguments(	
+		kernel.setArguments(
 				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer,
 				velXBuffer, velYBuffer, velZBuffer,
 				accXBuffer, accYBuffer, accZBuffer,
-				stepBuffer, blockCountBuffer, bodyCountBuffer, radiusBuffer, maxDepthBuffer, bottomBuffer, massBuffer, childBuffer,startBuffer, sortedBuffer
-			);
+				stepBuffer, blockCountBuffer, bodyCountBuffer, radiusBuffer, maxDepthBuffer, bottomBuffer, massBuffer, childBuffer, startBuffer, sortedBuffer
+				);
 	}
 
 	private static BuildOption[] createBuildOptions(int numberOfNodes, int nbodies, int localWorkSize, int numWorkGroups) {
@@ -167,7 +167,7 @@ public class GpuNBodySimulation implements NBodySimulation {
 				new BuildOption("-D NBODIES=" + nbodies),
 				new BuildOption("-D WORKGROUP_SIZE=" + localWorkSize),
 				new BuildOption("-D NUM_WORK_GROUPS=" + numWorkGroups),
-//				new BuildOption("-D DEBUG")
+		// new BuildOption("-D DEBUG")
 		};
 	}
 
@@ -189,27 +189,40 @@ public class GpuNBodySimulation implements NBodySimulation {
 		commandQueue.execute(sortKernel, 1, global, local);
 		commandQueue.execute(calculateForceKernel, 1, global, local);
 		commandQueue.execute(integrateKernel, 1, global, local);
-		
+
 		commandQueue.flush();
 		commandQueue.finish();
 
+		// System.out.println("bodiesX: " + Arrays.toString(bodiesXArr));
+		// System.out.println("bodiesY: " + Arrays.toString(bodiesYArr));
+		// System.out.println("bodiesZ: " + Arrays.toString(bodiesZArr));
+		// System.out.println("======");
+	}
+
+	public void printPosition() {
 		commandQueue.readBuffer(bodiesXBuffer);
 		commandQueue.readBuffer(bodiesYBuffer);
 		commandQueue.readBuffer(bodiesZBuffer);
-		
 		System.out.println("bodiesX: " + Arrays.toString(bodiesXArr));
 		System.out.println("bodiesY: " + Arrays.toString(bodiesYArr));
 		System.out.println("bodiesZ: " + Arrays.toString(bodiesZArr));
-		System.out.println("======");
 	}
 
 	public static void main(String[] args) {
-		final int nbodies = 8;
-		final  GpuNBodySimulation nBodySimulation = new GpuNBodySimulation(nbodies, new RandomUniverseGenerator(2));
+		final int nbodies = 32;
+		final GpuNBodySimulation nBodySimulation = new GpuNBodySimulation(nbodies, new RandomUniverseGenerator(10));
 
-		for (int i = 0; i < 10; ++i) {
+		nBodySimulation.printPosition();
+
+		for (int i = 0; i < 1000; ++i) {
 			nBodySimulation.step();
+			
+			// TODO needed for CPU implementation
+			Thread.yield();
 		}
+		nBodySimulation.printPosition();
+
+		System.out.println("done");
 	}
 
 }
