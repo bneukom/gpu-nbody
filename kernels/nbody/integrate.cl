@@ -12,7 +12,8 @@
 #define MAXDEPTH 64
 #define EPSILON (0.05f * 0.05f)
 #define THETA (0.5f * 0.5f)
-#define TIMESTEP 0.025f
+//#define TIMESTEP 0.025f
+#define TIMESTEP 0.00078125f
 
 #define NUMBER_OF_CELLS 8 // the number of cells per node
 
@@ -22,7 +23,7 @@ __kernel void integrate(
 	__global float* _velX, __global float* _velY, __global float* _velZ, 
 	__global float* _accX, __global float* _accY, __global float* _accZ,  
 	__global int* _step, __global int* _blockCount, __global int* _bodyCount,  __global float* _radius, __global int* _maxDepth,
-	__global int* _bottom, __global volatile float* _mass, __global volatile int* _child, __global volatile int* _start, __global volatile int* _sorted) {
+	__global int* _bottom, __global volatile float* _mass, __global volatile int* _child, __global volatile int* _start, __global volatile int* _sorted, __global int* _error) {
 	
 	int stepSize = get_local_size(0) * get_num_groups(0);
 	

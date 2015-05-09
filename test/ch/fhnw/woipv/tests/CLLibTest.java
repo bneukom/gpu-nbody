@@ -5,12 +5,13 @@ import static org.jocl.CL.*;
 import java.io.File;
 import java.io.IOException;
 
-import net.benjaminneukom.oocl.cl.OOCL;
 import net.benjaminneukom.oocl.cl.CLCommandQueue;
 import net.benjaminneukom.oocl.cl.CLContext;
 import net.benjaminneukom.oocl.cl.CLDevice;
+import net.benjaminneukom.oocl.cl.CLDevice.DeviceType;
 import net.benjaminneukom.oocl.cl.CLKernel;
 import net.benjaminneukom.oocl.cl.CLMemory;
+import net.benjaminneukom.oocl.cl.CLPlatform;
 import net.benjaminneukom.oocl.cl.CLProgram;
 import net.benjaminneukom.oocl.cl.CLProgram.BuildOption;
 
@@ -20,7 +21,7 @@ public class CLLibTest {
 		final int localWorkSize = 10;
 		final int globalWorkSize = numWorkGroups * localWorkSize;
 
-		final CLDevice device = OOCL.createDevice();
+		final CLDevice device = CLPlatform.getFirst().getDevice(DeviceType.CPU, d -> d.getDeviceVersion() >= 2.0f).orElseThrow(() -> new IllegalStateException());
 
 		final CLContext context = device.createContext();
 		final CLCommandQueue commandQueue = context.createCommandQueue();

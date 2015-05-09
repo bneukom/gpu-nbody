@@ -21,7 +21,7 @@ __kernel void boundingBox(
 	__global float* _velX, __global float* _velY, __global float* _velZ, 
 	__global float* _accX, __global float* _accY, __global float* _accZ, 	
 	__global int* _step, __global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global int* _maxDepth,
-	__global int* _bottom, __global float* _mass, __global int* _child, __global int* _start, __global int* _sorted) {
+	__global int* _bottom, __global float* _mass, __global int* _child, __global int* _start, __global int* _sorted, __global int* _error) {
 
 	DEBUG_PRINT(("- Info Boundingbox -\n"));
 	DEBUG_PRINT(("block_count = %d\n", *_blockCount));
