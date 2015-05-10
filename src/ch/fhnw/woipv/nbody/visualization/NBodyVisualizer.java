@@ -7,7 +7,6 @@
 package ch.fhnw.woipv.nbody.visualization;
 
 import static com.jogamp.opengl.GL.*;
-import static org.jocl.CL.*;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -21,9 +20,6 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.file.Files;
 import java.util.Arrays;
@@ -33,12 +29,11 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 import org.jocl.Sizeof;
-import org.jocl.cl_mem;
 
 import ch.fhnw.woipv.nbody.simulation.GpuNBodySimulation;
-import ch.fhnw.woipv.nbody.simulation.NBodySimulation;
 import ch.fhnw.woipv.nbody.simulation.GpuNBodySimulation.Mode;
-import ch.fhnw.woipv.nbody.simulation.universe.RandomUniverseGenerator;
+import ch.fhnw.woipv.nbody.simulation.NBodySimulation;
+import ch.fhnw.woipv.nbody.simulation.universe.PlummerUniverseGenerator;
 
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
@@ -141,8 +136,8 @@ public class NBodyVisualizer implements GLEventListener {
 
 			// If the right button is held down, rotate the object
 			else if ((e.getModifiersEx() & MouseEvent.BUTTON3_DOWN_MASK) == MouseEvent.BUTTON3_DOWN_MASK) {
-				rotationX += dy;
-				rotationY += dx;
+				rotationX += dx;
+				rotationY += dy;
 			}
 			previousMousePosition = e.getPoint();
 			updateModelviewMatrix();
@@ -185,7 +180,8 @@ public class NBodyVisualizer implements GLEventListener {
 		animator.start();
 
 		// Create the simulation
-		simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 64, new RandomUniverseGenerator(2));
+//		simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 64, new RandomUniverseGenerator(2));
+		simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 256, new PlummerUniverseGenerator());
 
 		// Create the main frame
 		frame = new JFrame("NBody Simulation");
@@ -226,7 +222,8 @@ public class NBodyVisualizer implements GLEventListener {
 		gl.setSwapInterval(0);
 
 		gl.glEnable(GL_DEPTH_TEST);
-		gl.glPointSize(3);
+//		gl.glPointSize(3);
+		gl.glEnable(GL3.GL_PROGRAM_POINT_SIZE);
 		gl.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
 		// Initialize the shaders
@@ -360,7 +357,7 @@ public class NBodyVisualizer implements GLEventListener {
 		// Set the current modelview matrix
 		final int modelviewMatrixLocation = gl.glGetUniformLocation(shaderProgramID, "modelviewMatrix");
 		gl.glUniformMatrix4fv(modelviewMatrixLocation, 1, false, modelviewMatrix, 0);
-
+		
 		// Render the VBO
 		gl.glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
 		gl.glDrawArrays(GL_POINTS, 0, simulation.getNumberOfBodies());

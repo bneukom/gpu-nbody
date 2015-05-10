@@ -17,7 +17,7 @@ __global volatile float _maxX[NUM_WORK_GROUPS], _maxY[NUM_WORK_GROUPS], _maxZ[NU
 */
 __attribute__ ((reqd_work_group_size(WORKGROUP_SIZE, 1, 1))) 
 __kernel void boundingBox(
-	__global float* _posX, __global float* _posY, __global float* _posZ,
+	__global volatile float* _posX, __global volatile float* _posY, __global volatile float* _posZ,
 	__global float* _velX, __global float* _velY, __global float* _velZ, 
 	__global float* _accX, __global float* _accY, __global float* _accZ, 	
 	__global int* _step, __global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global int* _maxDepth,
@@ -157,6 +157,7 @@ __kernel void boundingBox(
                 localMaxZ[0] = fmax(localMaxZ[0], _maxZ[i]);
             }
 
+			DEBUG_PRINT(("RESULT\n"));
 			DEBUG_PRINT(("minX: %f\n", localMinX[0]));
 			DEBUG_PRINT(("minY: %f\n", localMinY[0]));
 			DEBUG_PRINT(("minZ: %f\n", localMinZ[0]));

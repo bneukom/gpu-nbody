@@ -17,7 +17,7 @@ __kernel void summarizeTree(
 	__global float* _posX, __global float* _posY, __global float* _posZ,
 	__global float* _velX, __global float* _velY, __global float* _velZ, 
 	__global float* _accX, __global float* _accY, __global float* _accZ,  
-	__global int* _step, __global int* _blockCount, __global int* _bodyCount,  __global float* _radius, __global int* _maxDepth,
+	__global int* _step, __global int* _blockCount, __global atomic_int* _bodyCount,  __global float* _radius, __global int* _maxDepth,
 	__global int* _bottom, __global volatile atomic_float* _mass, __global volatile int* _child, __global volatile int* _start, __global volatile int* _sorted, __global int* _error) {
 	
 	// TODO
@@ -97,7 +97,10 @@ __kernel void summarizeTree(
 						
 						if (child >= NBODIES) {
 							DEBUG_PRINT(("\t\t\tcellBodyCount1: %d\n", cellBodyCount));
-							cellBodyCount += _bodyCount[child] - 1;
+							
+							// cellBodyCount += _bodyCount[child] - 1;
+							cellBodyCount += atomic_load_explicit(&_bodyCount[child], memory_order_seq_cst, memory_scope_device) - 1;
+							
 							DEBUG_PRINT(("\t\t\tcellBodyCount2: %d\n", cellBodyCount));
 						}
 
@@ -134,7 +137,8 @@ __kernel void summarizeTree(
 					DEBUG_PRINT(("\t\t\tmissing: %d\n", missing));
 					if (child >= NBODIES) {
 						DEBUG_PRINT(("\t\t\tcellBodyCount1: %d\n", cellBodyCount));
-						cellBodyCount += _bodyCount[child] - 1;
+						// cellBodyCount +=  _bodyCount[child] - 1;
+						cellBodyCount += atomic_load_explicit(&_bodyCount[child], memory_order_seq_cst, memory_scope_device) - 1;
 						DEBUG_PRINT(("\t\t\tcellBodyCount2: %d\n", cellBodyCount));
 					}
 					
@@ -152,7 +156,8 @@ __kernel void summarizeTree(
 			DEBUG_PRINT(("\tmissing is zero\n"));
 			DEBUG_PRINT(("\t\tbodyCount: %d\n", cellBodyCount));
 			DEBUG_PRINT(("\t\tcellMass: %f\n", cellMass));
-			_bodyCount[node] = cellBodyCount;
+			//_bodyCount[node] = cellBodyCount;
+			atomic_store_explicit (&_bodyCount[node], cellBodyCount, memory_order_seq_cst, memory_scope_device);	
 			mass = 1.0f / cellMass;
 			DEBUG_PRINT(("\t\tcenterX: %f\n", centerX));
 			DEBUG_PRINT(("\t\tcenterY: %f\n", centerY));

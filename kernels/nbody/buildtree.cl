@@ -14,8 +14,8 @@ __kernel void buildTree(
 	__global float* _posX, __global float* _posY, __global float* _posZ,
 	__global float* _velX, __global float* _velY, __global float* _velZ, 
 	__global float* _accX, __global float* _accY, __global float* _accZ, 
-	__global int* _step, __global int* _blockCount, __global int* _bodyCount, __global float* _radius, __global volatile int* _maxDepth,
-	__global int* _bottom, __global volatile float* _mass, __global int* _child, __global int* _start, __global int* _sorted, __global int* _error) {
+	__global int* _step, __global int* _blockCount, __global volatile int* _bodyCount, __global float* _radius, __global volatile int* _maxDepth,
+	__global volatile int* _bottom, __global volatile float* _mass, __global volatile int* _child, __global int* _start, __global int* _sorted, __global int* _error) {
 
     int localMaxDepth = 1;
 	DEBUG_PRINT(("- Info Buildtree -\n"));
@@ -114,7 +114,7 @@ __kernel void buildTree(
 							// TODO REPORT ERROR
 							*_error = 1;
                           	printf("ERROR ABORT\n");
-                          	printf("\t(%f, %f, %f)", bodyX, bodyY, bodyZ); 
+                          	printf("\t(%f, %f, %f)\n", bodyX, bodyY, bodyZ); 
                           	*_bottom = NUMBER_OF_NODES;
                           	return;
                         }
@@ -179,7 +179,7 @@ __kernel void buildTree(
                 }
                 
                 // TODO is this needed?
-				atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE, memory_order_seq_cst, memory_scope_device);
+				// atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE, memory_order_seq_cst, memory_scope_device);
 		
                 localMaxDepth = max(depth, localMaxDepth);
 
