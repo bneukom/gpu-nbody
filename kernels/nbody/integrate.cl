@@ -12,8 +12,8 @@
 #define MAXDEPTH 64
 #define EPSILON (0.05f * 0.05f)
 #define THETA (0.5f * 0.5f)
-//#define TIMESTEP 0.025f
-#define TIMESTEP 0.00078125f
+#define TIMESTEP 0.025f
+//#define TIMESTEP 0.00078125f
 
 #define NUMBER_OF_CELLS 8 // the number of cells per node
 

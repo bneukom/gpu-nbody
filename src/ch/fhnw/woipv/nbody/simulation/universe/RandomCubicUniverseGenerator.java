@@ -1,10 +1,10 @@
 package ch.fhnw.woipv.nbody.simulation.universe;
 
-public class RandomUniverseGenerator implements UniverseGenerator {
+public class RandomCubicUniverseGenerator implements UniverseGenerator {
 
 	private final float range;
 
-	public RandomUniverseGenerator(float range) {
+	public RandomCubicUniverseGenerator(float range) {
 		this.range = range;
 	}
 

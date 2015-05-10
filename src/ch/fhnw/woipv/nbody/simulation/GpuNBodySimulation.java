@@ -51,7 +51,7 @@ public class GpuNBodySimulation implements NBodySimulation {
 	private static final boolean KERNEL_DEBUG = false;
 
 	private static final int WARPSIZE = 64;
-	private static final int WORK_GROUPS = 1; // THREADS (for now all the same)
+	private static final int WORK_GROUPS = 4; // THREADS (for now all the same)
 	private static final int FACTORS = 1; // FACTORS (for now all the same)
 
 	private BuildOption[] buildOptions;
@@ -122,7 +122,7 @@ public class GpuNBodySimulation implements NBodySimulation {
 		}
 
 		// init opencl
-		this.device = CLPlatform.getFirst().getDevice(DeviceType.CPU, d -> d.getDeviceVersion() >= 2.0f).orElseThrow(() -> new IllegalStateException());
+		this.device = CLPlatform.getFirst().getDevice(DeviceType.GPU, d -> d.getDeviceVersion() >= 2.0f).orElseThrow(() -> new IllegalStateException());
 		this.context = device.createContext(contextProperties);
 		this.commandQueue = this.context.createCommandQueue();
 
@@ -399,7 +399,7 @@ public class GpuNBodySimulation implements NBodySimulation {
 	}
 
 	public static void main(final String[] args) {
-		final int nbodies = 256 * 2;
+		final int nbodies = 128;
 		final GpuNBodySimulation nBodySimulation = new GpuNBodySimulation(Mode.DEFAULT, nbodies, new PlummerUniverseGenerator());
 
 		nBodySimulation.init(null);

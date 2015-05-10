@@ -34,6 +34,7 @@ import ch.fhnw.woipv.nbody.simulation.GpuNBodySimulation;
 import ch.fhnw.woipv.nbody.simulation.GpuNBodySimulation.Mode;
 import ch.fhnw.woipv.nbody.simulation.NBodySimulation;
 import ch.fhnw.woipv.nbody.simulation.universe.PlummerUniverseGenerator;
+import ch.fhnw.woipv.nbody.simulation.universe.RandomCubicUniverseGenerator;
 
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
@@ -180,8 +181,8 @@ public class NBodyVisualizer implements GLEventListener {
 		animator.start();
 
 		// Create the simulation
-//		simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 64, new RandomUniverseGenerator(2));
-		simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 256, new PlummerUniverseGenerator());
+		simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048 * 2  * 2, new RandomCubicUniverseGenerator(2));
+//		simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048, new PlummerUniverseGenerator());
 
 		// Create the main frame
 		frame = new JFrame("NBody Simulation");
@@ -222,7 +223,7 @@ public class NBodyVisualizer implements GLEventListener {
 		gl.setSwapInterval(0);
 
 		gl.glEnable(GL_DEPTH_TEST);
-//		gl.glPointSize(3);
+		gl.glPointSize(2);
 		gl.glEnable(GL3.GL_PROGRAM_POINT_SIZE);
 		gl.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 

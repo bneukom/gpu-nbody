@@ -19,7 +19,7 @@ import org.jocl.CL;
 import org.junit.Before;
 import org.junit.Test;
 
-import ch.fhnw.woipv.nbody.simulation.universe.RandomUniverseGenerator;
+import ch.fhnw.woipv.nbody.simulation.universe.RandomCubicUniverseGenerator;
 import ch.fhnw.woipv.nbody.simulation.universe.UniverseGenerator;
 
 public class TestBoundingBox {
@@ -35,7 +35,7 @@ public class TestBoundingBox {
 	private static final boolean KERNEL_DEBUG = false;
 
 	private static final int WARPSIZE = 64;
-	private static final int WORK_GROUPS = 1; // THREADS (for now all the same)
+	private static final int WORK_GROUPS = 4; // THREADS (for now all the same)
 	private static final int FACTORS = 1; // FACTORS (for now all the same)
 
 	private BuildOption[] buildOptions;
@@ -91,15 +91,15 @@ public class TestBoundingBox {
 	public void init() {
 
 		this.nbodies = 2048;
-		this.universeGenerator = new RandomUniverseGenerator(nbodies);
+		this.universeGenerator = new RandomCubicUniverseGenerator(nbodies);
 
 		// init opencl
-		this.device = CLPlatform.getFirst().getDevice(DeviceType.CPU, d -> d.getDeviceVersion() >= 2.0f).orElseThrow(() -> new IllegalStateException());
+		this.device = CLPlatform.getFirst().getDevice(DeviceType.GPU, d -> d.getDeviceVersion() >= 2.0f).orElseThrow(() -> new IllegalStateException());
 		this.context = device.createContext();
 		this.commandQueue = this.context.createCommandQueue();
 
 		// calculate workloads
-		// this.maxComputeUnits = (int) device.getLong(CL_DEVICE_MAX_COMPUTE_UNITS);
+//		this.maxComputeUnits = (int) device.getLong(CL_DEVICE_MAX_COMPUTE_UNITS);
 		this.maxComputeUnits = 1;
 
 		this.global = maxComputeUnits * WORK_GROUPS * FACTORS;
