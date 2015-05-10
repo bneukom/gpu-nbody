@@ -47,7 +47,7 @@ public class GpuNBodySimulation implements NBodySimulation {
 
 	private final Mode mode;
 
-	private static final boolean HOST_DEBUG = true;
+	private static final boolean HOST_DEBUG = false;
 	private static final boolean KERNEL_DEBUG = false;
 
 	private static final int WARPSIZE = 64;

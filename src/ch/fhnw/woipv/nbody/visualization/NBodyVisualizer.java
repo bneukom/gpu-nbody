@@ -109,14 +109,14 @@ public class NBodyVisualizer implements GLEventListener {
 	private final Animator animator;
 
 	/**
-	 * Step counter for FPS computation
-	 */
-	private int step = 0;
-
-	/**
 	 * The main frame of the application
 	 */
 	private final Frame frame;
+
+	/**
+	 * The OpenGL Canvas
+	 */
+	private GLCanvas glComponent;
 
 	/**
 	 * Inner class encapsulating the MouseMotionListener and MouseWheelListener for the interaction
@@ -165,8 +165,7 @@ public class NBodyVisualizer implements GLEventListener {
 	 *            The GL capabilities
 	 */
 	public NBodyVisualizer(final GLCapabilities capabilities) {
-		// Initialize the GL component
-		final GLCanvas glComponent = new GLCanvas(capabilities);
+		glComponent = new GLCanvas(capabilities);
 		glComponent.setFocusable(true);
 		glComponent.addGLEventListener(this);
 
@@ -181,8 +180,8 @@ public class NBodyVisualizer implements GLEventListener {
 		animator.start();
 
 		// Create the simulation
-		simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048 * 2  * 2, new RandomCubicUniverseGenerator(2));
-//		simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048, new PlummerUniverseGenerator());
+		simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048 * 4, new RandomCubicUniverseGenerator(2));
+		// simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048 * 4, new PlummerUniverseGenerator());
 
 		// Create the main frame
 		frame = new JFrame("NBody Simulation");
@@ -241,13 +240,12 @@ public class NBodyVisualizer implements GLEventListener {
 				runExit();
 			}).start();
 		}
-		
+
 		// initializes the simulation
 		simulation.init(gl);
 
 		// Initialize the OpenGL VBO and the OpenCL VBO memory object
 		initVBOData(gl);
-		
 
 		initialized = true;
 	}
@@ -358,7 +356,13 @@ public class NBodyVisualizer implements GLEventListener {
 		// Set the current modelview matrix
 		final int modelviewMatrixLocation = gl.glGetUniformLocation(shaderProgramID, "modelviewMatrix");
 		gl.glUniformMatrix4fv(modelviewMatrixLocation, 1, false, modelviewMatrix, 0);
-		
+
+		final int screenSizeLocation = gl.glGetUniformLocation(shaderProgramID, "screenSize");
+		gl.glUniform2f(screenSizeLocation, glComponent.getWidth(), glComponent.getHeight());
+
+		final int spriteSizeLocation = gl.glGetUniformLocation(shaderProgramID, "spriteSize");
+		gl.glUniform1f(spriteSizeLocation, 0.01f);
+
 		// Render the VBO
 		gl.glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
 		gl.glDrawArrays(GL_POINTS, 0, simulation.getNumberOfBodies());
