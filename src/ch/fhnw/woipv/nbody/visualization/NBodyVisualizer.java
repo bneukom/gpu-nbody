@@ -33,16 +33,18 @@ import org.jocl.Sizeof;
 import ch.fhnw.woipv.nbody.simulation.GpuNBodySimulation;
 import ch.fhnw.woipv.nbody.simulation.GpuNBodySimulation.Mode;
 import ch.fhnw.woipv.nbody.simulation.NBodySimulation;
-import ch.fhnw.woipv.nbody.simulation.universe.PlummerUniverseGenerator;
 import ch.fhnw.woipv.nbody.simulation.universe.RandomCubicUniverseGenerator;
 
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLCapabilities;
 import com.jogamp.opengl.GLEventListener;
+import com.jogamp.opengl.GLException;
 import com.jogamp.opengl.GLProfile;
 import com.jogamp.opengl.awt.GLCanvas;
 import com.jogamp.opengl.util.Animator;
+import com.jogamp.opengl.util.texture.Texture;
+import com.jogamp.opengl.util.texture.TextureIO;
 
 public class NBodyVisualizer implements GLEventListener {
 
@@ -81,7 +83,7 @@ public class NBodyVisualizer implements GLEventListener {
 	/**
 	 * The translation in Z-direction
 	 */
-	private float translationZ = -4;
+	private float translationZ = -8;
 
 	/**
 	 * The rotation about the X-axis, in degrees
@@ -119,6 +121,11 @@ public class NBodyVisualizer implements GLEventListener {
 	private GLCanvas glComponent;
 
 	/**
+	 * The texture of the bodies
+	 */
+	private Texture bodyTexture;
+	
+	/**
 	 * Inner class encapsulating the MouseMotionListener and MouseWheelListener for the interaction
 	 */
 	private class MouseControl implements MouseMotionListener, MouseWheelListener {
@@ -137,8 +144,8 @@ public class NBodyVisualizer implements GLEventListener {
 
 			// If the right button is held down, rotate the object
 			else if ((e.getModifiersEx() & MouseEvent.BUTTON3_DOWN_MASK) == MouseEvent.BUTTON3_DOWN_MASK) {
-				rotationX += dx;
-				rotationY += dy;
+				rotationX += dy;
+				rotationY += dx;
 			}
 			previousMousePosition = e.getPoint();
 			updateModelviewMatrix();
@@ -180,8 +187,8 @@ public class NBodyVisualizer implements GLEventListener {
 		animator.start();
 
 		// Create the simulation
-		simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048 * 4, new RandomCubicUniverseGenerator(2));
-		// simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048 * 4, new PlummerUniverseGenerator());
+		simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048 * 4, new RandomCubicUniverseGenerator(4));
+		// simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 128, new SphericalUniverseGenerator());
 
 		// Create the main frame
 		frame = new JFrame("NBody Simulation");
@@ -221,8 +228,7 @@ public class NBodyVisualizer implements GLEventListener {
 
 		gl.setSwapInterval(0);
 
-		gl.glEnable(GL_DEPTH_TEST);
-		gl.glPointSize(2);
+		gl.glPointSize(3);
 		gl.glEnable(GL3.GL_PROGRAM_POINT_SIZE);
 		gl.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -246,6 +252,18 @@ public class NBodyVisualizer implements GLEventListener {
 
 		// Initialize the OpenGL VBO and the OpenCL VBO memory object
 		initVBOData(gl);
+
+		// load textures
+		try {
+			bodyTexture = TextureIO.newTexture(new File("textures/body.png"), false);
+			bodyTexture.setTexParameteri(gl, GL_TEXTURE_WRAP_S, GL_REPEAT);
+			bodyTexture.setTexParameteri(gl, GL_TEXTURE_WRAP_T, GL_REPEAT);
+			bodyTexture.enable(gl);
+		} catch (GLException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 
 		initialized = true;
 	}
@@ -361,9 +379,17 @@ public class NBodyVisualizer implements GLEventListener {
 		gl.glUniform2f(screenSizeLocation, glComponent.getWidth(), glComponent.getHeight());
 
 		final int spriteSizeLocation = gl.glGetUniformLocation(shaderProgramID, "spriteSize");
-		gl.glUniform1f(spriteSizeLocation, 0.01f);
+		gl.glUniform1f(spriteSizeLocation, 0.1f);
+
+		bodyTexture.enable(gl);
+		bodyTexture.bind(gl);
+		final int textureLocation = gl.glGetUniformLocation(shaderProgramID, "tex");
+		gl.glUniform1i(textureLocation, bodyTexture.getTarget());
 
 		// Render the VBO
+		gl.glEnable(GL_TEXTURE_2D);
+		gl.glEnable(GL_BLEND);
+		gl.glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		gl.glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
 		gl.glDrawArrays(GL_POINTS, 0, simulation.getNumberOfBodies());
 	}

@@ -149,6 +149,9 @@ public class GpuNBodySimulation implements NBodySimulation {
 		universeGenerator.generate(0, nbodies, bodiesX, bodiesY, bodiesZ, velX, velY, velZ, bodiesMass);
 
 		loadBuffers(numberOfNodes, nbodies, bodiesX, bodiesY, bodiesZ, velX, velY, velZ, bodiesMass);
+		
+		
+		
 		loadKernels(context, buildOptions);
 
 		setSimulationKernelsArguments(simulationKernels);
