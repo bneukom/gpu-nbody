@@ -8,14 +8,17 @@
 #define LOCK (-2)
 
 // TODO pass as argument
-#define WARPSIZE 64
+#define WARPSIZE 32
 #define MAXDEPTH 64
 #define EPSILON (0.05f * 0.05f)
 #define THETA (0.5f * 0.5f)
-#define TIMESTEP 0.025f
+//#define THETA (0)
+#define TIMESTEP (0.025f)
 //#define TIMESTEP 0.00078125f
 
 #define NUMBER_OF_CELLS 8 // the number of cells per node
+
+// TODO http://physics.princeton.edu/~fpretori/Nbody/code.htm for correct force etc!
 
 __attribute__ ((reqd_work_group_size(WORKGROUP_SIZE, 1, 1)))
 __kernel void calculateForce(
@@ -38,14 +41,26 @@ __kernel void calculateForce(
 	DEBUG_PRINT(("MAXDEPTH %d\n", MAXDEPTH));
 	DEBUG_PRINT(("maxDepth %d\n", *_maxDepth));
 	
-	if (get_local_id(0) == 0) {
+	DEBUG_PRINT(("group: %d\n", get_group_id(0))); 
+	DEBUG_PRINT(("global: %d\n", get_global_id(0))); 
+	DEBUG_PRINT(("local: %d\n", get_local_id(0)));  
+	
+	// TODO thread divergence will cause some errors ... jesus...
+	//if (get_local_id(0) == 0) {
 		float radius = *_radius; 
-		dq[0] = radius * radius / THETA;
+		
+		if (THETA > 0) {
+			dq[0] = radius * radius / THETA;
+		} else {
+			dq[0] = radius * radius;
+		}
 		
 		int i;
+		DEBUG_PRINT(("dq[0] = %f\n", dq[0]));	
 		for (i = 1; i < *_maxDepth; ++i) {
 			dq[i] = 0.25f * dq[i - 1];	
-			dq[i - 1] += EPSILON;	
+			dq[i - 1] += EPSILON;
+			DEBUG_PRINT(("dq[%d] = %f\n", i, dq[i]));	
 		}
 		dq[i - 1] += EPSILON;
 		
@@ -54,14 +69,18 @@ __kernel void calculateForce(
 			*_error = 1;
 			return;
 		} 
-	}
+	//}
 	
-	barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
+	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	if (*_maxDepth <= MAXDEPTH) {
 		int base = get_local_id(0) / WARPSIZE;
 		int sBase = base * WARPSIZE;
 		int j = base * MAXDEPTH;
+		
+		DEBUG_PRINT(("base: %d (%d, %d)\n", base, get_local_id(0), get_global_id(0)));
+		DEBUG_PRINT(("sBase: %d (%d, %d)\n", sBase, get_local_id(0), get_global_id(0)));
+		DEBUG_PRINT(("j: %d (%d, %d)\n", j, get_local_id(0), get_global_id(0)));
 		
 		// index in warp
 		int diff = get_local_id(0) - sBase;
@@ -73,7 +92,10 @@ __kernel void calculateForce(
 		
 		barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 		
+		DEBUG_PRINT(("step: %d (%d, %d)\n", get_local_size(0) * get_num_groups(0), get_local_id(0), get_global_id(0)));
+		DEBUG_PRINT(("global: %d (%d, %d)\n", get_global_id(0),  get_local_id(0), get_global_id(0)));
 		for (int bodyIndex = get_global_id(0); bodyIndex < NBODIES; bodyIndex += get_local_size(0) * get_num_groups(0)) {
+			DEBUG_PRINT(("bodyIndex: %d (%d, %d)\n", bodyIndex,  get_local_id(0), get_global_id(0)));
 			int sortedIndex = _sorted[bodyIndex];
 			
 			float posX = _posX[sortedIndex];
@@ -93,11 +115,14 @@ __kernel void calculateForce(
 			
 			mem_fence(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 			
+			DEBUG_PRINT(("depth: %d (%d, %d)\n", depth,  get_local_id(0), get_global_id(0)));
+			DEBUG_PRINT(("j: %d (%d, %d)\n", j,  get_local_id(0), get_global_id(0)));
 			while (depth >= j) {
+				DEBUG_PRINT(("localPos[depth]: %d (%d, %d)\n", localPos[depth],  get_local_id(0), get_global_id(0)));
 				int top;
 				while ((top = localPos[depth]) < 8) {
 					int child = _child[localNode[depth] * NUMBER_OF_CELLS + top];
-					
+					DEBUG_PRINT(("child: %d (%d, %d)\n", child,  get_local_id(0), get_global_id(0)));
 					if (sBase == get_local_id(0)) {
 						// first thread in warp
 						localPos[depth] = top + 1;
@@ -107,26 +132,28 @@ __kernel void calculateForce(
 					mem_fence(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 					
 					if (child >= 0) {
+						DEBUG_PRINT(("child >= 0 (%d, %d)\n", get_local_id(0), get_global_id(0)));
 						float distX = _posX[child] - posX;
-						float distY = _posX[child] - posY;
-						float distZ = _posX[child] - posZ;
+						float distY = _posY[child] - posY;
+						float distZ = _posZ[child] - posZ;
 						
 						// squared distance plus softening
 						float distSquared = distX * distX + distY * distY + distZ * distZ + EPSILON;
 						
-						if ((child < NBODIES) || work_group_all(distSquared >= dq[depth])) {
-							float distance = rsqrt(distSquared);
-							float f = _mass[child] * distance * distance * distance;
-							//printf("f: %f\n", f);
+						if ((child < NBODIES) /*|| distSquared >= dq[depth]*/ || work_group_all(distSquared >= dq[depth])) {
+							float rdistance = rsqrt(distSquared);
+							DEBUG_PRINT(("rdistance: %f (%d, %d)\n", rdistance, get_local_id(0), get_global_id(0)));
+							float f = _mass[child] * rdistance * rdistance * rdistance;
 							accX += distX * f;
 							accY += distY * f;
 							accZ += distZ * f;
-							
+							 
 						} else {
+						
+							// push cell on to stack
 							depth++;
-							
 							if (sBase == get_local_id(0)) {
-								localNode[depth] = NUMBER_OF_NODES;
+								localNode[depth] = child;
 								localPos[depth] = 0;
 							}
 						

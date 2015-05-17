@@ -7,9 +7,6 @@
 #define NULL_BODY (-1)
 #define LOCK (-2)
 
-// TODO pass as argument
-#define WARPSIZE 64
-
 #define NUMBER_OF_CELLS 8 // the number of cells per node
 
 __attribute__ ((reqd_work_group_size(WORKGROUP_SIZE, 1, 1)))

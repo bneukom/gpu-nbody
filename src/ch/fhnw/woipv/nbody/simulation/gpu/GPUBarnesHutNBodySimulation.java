@@ -1,4 +1,4 @@
-package ch.fhnw.woipv.nbody.simulation;
+package ch.fhnw.woipv.nbody.simulation.gpu;
 
 import static com.jogamp.opengl.GL.*;
 import static org.jocl.CL.*;
@@ -25,33 +25,27 @@ import org.jocl.CL;
 import org.jocl.Sizeof;
 import org.jocl.cl_context_properties;
 
-import ch.fhnw.woipv.nbody.simulation.universe.PlummerUniverseGenerator;
+import ch.fhnw.woipv.nbody.simulation.AbstractNBodySimulation;
+import ch.fhnw.woipv.nbody.simulation.universe.RandomCubicUniverseGenerator;
 import ch.fhnw.woipv.nbody.simulation.universe.UniverseGenerator;
+import ch.fhnw.woipv.nbody.simulation.universe.test.EightBodyUniverse;
 
 import com.jogamp.nativewindow.NativeSurface;
 import com.jogamp.opengl.GL;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLContext;
 
-// TODO cleaner init
-// TODO mode with and without opengl?
-public class GpuNBodySimulation implements NBodySimulation {
+public class GPUBarnesHutNBodySimulation extends AbstractNBodySimulation {
 
 	static {
 		CL.setExceptionsEnabled(true);
 	}
 
-	public enum Mode {
-		GL_INTEROP, DEFAULT
-	}
-
-	private final Mode mode;
-
 	private static final boolean HOST_DEBUG = false;
 	private static final boolean KERNEL_DEBUG = false;
 
-	private static final int WARPSIZE = 64;
-	private static final int WORK_GROUPS = 4; // THREADS (for now all the same)
+	private static final int WARPSIZE = 32;
+	private static final int WORK_GROUPS = 16; // THREADS (for now all the same)
 	private static final int FACTORS = 1; // FACTORS (for now all the same)
 
 	private BuildOption[] buildOptions;
@@ -106,8 +100,8 @@ public class GpuNBodySimulation implements NBodySimulation {
 
 	private final UniverseGenerator universeGenerator;
 
-	public GpuNBodySimulation(final Mode mode, final int nbodies, final UniverseGenerator generator) {
-		this.mode = mode;
+	public GPUBarnesHutNBodySimulation(final Mode mode, final int nbodies, final UniverseGenerator generator) {
+		super(mode);
 		this.nbodies = nbodies;
 		this.universeGenerator = generator;
 	}
@@ -128,7 +122,7 @@ public class GpuNBodySimulation implements NBodySimulation {
 
 		// calculate workloads
 		// this.maxComputeUnits = (int) device.getLong(CL_DEVICE_MAX_COMPUTE_UNITS);
-		this.maxComputeUnits = 1;
+		this.maxComputeUnits = 16;
 
 		this.global = maxComputeUnits * WORK_GROUPS * FACTORS;
 		this.local = WORK_GROUPS;
@@ -149,9 +143,7 @@ public class GpuNBodySimulation implements NBodySimulation {
 		universeGenerator.generate(0, nbodies, bodiesX, bodiesY, bodiesZ, velX, velY, velZ, bodiesMass);
 
 		loadBuffers(numberOfNodes, nbodies, bodiesX, bodiesY, bodiesZ, velX, velY, velZ, bodiesMass);
-		
-		
-		
+
 		loadKernels(context, buildOptions);
 
 		setSimulationKernelsArguments(simulationKernels);
@@ -244,7 +236,7 @@ public class GpuNBodySimulation implements NBodySimulation {
 			gl.glBindBuffer(GL_ARRAY_BUFFER, vbo);
 			positionBuffer = context.createFromGLBuffer(CL_MEM_WRITE_ONLY, vbo);
 		} else {
-			int size = nbodies * 4 * Sizeof.cl_float;
+			final int size = nbodies * 4 * Sizeof.cl_float;
 			positionBuffer = context.createEmptyBuffer(CL_MEM_WRITE_ONLY, size);
 		}
 
@@ -272,8 +264,9 @@ public class GpuNBodySimulation implements NBodySimulation {
 		commandQueue.finish();
 	}
 
-	private void executeSimulationKernel(CLKernel kernel) {
+	private void executeSimulationKernel(final CLKernel kernel) {
 		commandQueue.execute(kernel, 1, global, local);
+		commandQueue.finish();
 		if (HOST_DEBUG) {
 			commandQueue.readBuffer(errorBuffer);
 			if (errorBuffer.getData()[0] != 0) {
@@ -293,7 +286,7 @@ public class GpuNBodySimulation implements NBodySimulation {
 
 	private void printChildren() {
 		commandQueue.readBuffer(childBuffer);
-		int[] child = childBuffer.getData();
+		final int[] child = childBuffer.getData();
 
 		int n = numberOfNodes;
 		for (int i = 8 * (numberOfNodes + 1) - 1; i > 0; i -= 8) {
@@ -303,51 +296,63 @@ public class GpuNBodySimulation implements NBodySimulation {
 		}
 	}
 
-	public void printEnergy() {
+	private void printEnergy() {
+		commandQueue.readBuffer(massBuffer);
+		commandQueue.readBuffer(bodiesXBuffer);
+		commandQueue.readBuffer(bodiesYBuffer);
+		commandQueue.readBuffer(bodiesZBuffer);
+		commandQueue.readBuffer(velXBuffer);
+		commandQueue.readBuffer(velYBuffer);
+		commandQueue.readBuffer(velZBuffer);
+
+		double kineticEnergy = 0;
+		double potentialEnergy = 0;
+
+		for (int i = 0; i < nbodies; ++i) {
+			final double velX = velXBuffer.getData()[i];
+			final double velY = velYBuffer.getData()[i];
+			final double velZ = velZBuffer.getData()[i];
+			final double v = Math.sqrt(velX * velX + velY * velY + velZ * velZ);
+
+			final double m1 = massBuffer.getData()[i];
+			kineticEnergy += (m1 * v * v / 2);
+
+			for (int j = i + 1; j < nbodies; ++j) {
+				final double m2 = massBuffer.getData()[j];
+				final double deltaX = bodiesXBuffer.getData()[i] - bodiesXBuffer.getData()[j];
+				final double deltaY = bodiesYBuffer.getData()[i] - bodiesYBuffer.getData()[j];
+				final double deltaZ = bodiesZBuffer.getData()[i] - bodiesZBuffer.getData()[j];
+				final double r = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+				double e = (m1 * m2) / r;
+
+				potentialEnergy += 2 * e;
+
+			}
+		}
+
+		System.out.println("ekin: " + kineticEnergy + " epot:" + potentialEnergy + " etot: " + (kineticEnergy - potentialEnergy));
+	}
+
+	private void printImpulse() {
 		commandQueue.readBuffer(massBuffer);
 		commandQueue.readBuffer(velXBuffer);
 		commandQueue.readBuffer(velYBuffer);
 		commandQueue.readBuffer(velZBuffer);
 
-		// TODO calculate gravitational energy.
-		double totalEnergy = 0.0f;
-		final float[] mass = massBuffer.getData();
-		final float[] velX = velXBuffer.getData();
-		final float[] velY = velYBuffer.getData();
-		final float[] velZ = velZBuffer.getData();
+		double impulseX = 0;
+		double impulseY = 0;
+		double impulseZ = 0;
+
 		for (int i = 0; i < nbodies; ++i) {
-			final double velocity = Math.sqrt(velX[i] * velX[i] + velY[i] * velY[i] + velZ[i] * velZ[i]);
-			totalEnergy += 0.5 * mass[i] * velocity * velocity;
+			impulseX += massBuffer.getData()[i] * velXBuffer.getData()[i];
+			impulseY += massBuffer.getData()[i] * velYBuffer.getData()[i];
+			impulseZ += massBuffer.getData()[i] * velZBuffer.getData()[i];
 		}
 
-		System.out.println("total energy: " + totalEnergy);
+		System.out.println("impulse: (" + impulseX + ", " + impulseY + ", " + impulseZ + ")");
 	}
 
-	public void printTotalForce() {
-		commandQueue.readBuffer(massBuffer);
-		commandQueue.readBuffer(accXBuffer);
-		commandQueue.readBuffer(accYBuffer);
-		commandQueue.readBuffer(accZBuffer);
-
-		float fx = 0;
-		float fy = 0;
-		float fz = 0;
-
-		final float[] mass = massBuffer.getData();
-		final float[] accX = accXBuffer.getData();
-		final float[] accY = accYBuffer.getData();
-		final float[] accZ = accZBuffer.getData();
-		for (int i = 0; i < nbodies; ++i) {
-			final float m = mass[i];
-			fx += m * accX[i];
-			fy += m * accY[i];
-			fz += m * accZ[i];
-		}
-
-		System.out.println("total force: (" + fx + ", " + fy + ", " + fz + ")");
-	}
-
-	public void printPosition() {
+	private void printPosition() {
 		commandQueue.readBuffer(bodiesXBuffer);
 		commandQueue.readBuffer(bodiesYBuffer);
 		commandQueue.readBuffer(bodiesZBuffer);
@@ -402,32 +407,28 @@ public class GpuNBodySimulation implements NBodySimulation {
 	}
 
 	public static void main(final String[] args) {
-		final int nbodies = 128;
-		final GpuNBodySimulation nBodySimulation = new GpuNBodySimulation(Mode.DEFAULT, nbodies, new PlummerUniverseGenerator());
+		final int nbodies = 8;
+		final GPUBarnesHutNBodySimulation nBodySimulation = new GPUBarnesHutNBodySimulation(Mode.DEFAULT, nbodies, new EightBodyUniverse());
 
 		nBodySimulation.init(null);
 		nBodySimulation.initPositionBuffer(null, -1);
 
-		if (HOST_DEBUG) {
-			nBodySimulation.printPosition();
-		}
-		for (int i = 0; i < 5000; ++i) {
-			nBodySimulation.step();
+		for (int i = 0; i < 100; ++i) {
+			if (HOST_DEBUG) {
+				long start = System.currentTimeMillis();
+				nBodySimulation.step();
+				System.out.println("time: " + (System.currentTimeMillis() - start) + "ms");
+			} else {
+				nBodySimulation.step();
+			}
 
 			if (HOST_DEBUG) {
+//				nBodySimulation.printImpulse();
+//				nBodySimulation.printEnergy();
 //				nBodySimulation.printChildren();
-//				nBodySimulation.printPosition();
-				nBodySimulation.printTotalForce();
-				nBodySimulation.printEnergy();
 			}
 
 			Thread.yield();
-		}
-
-		if (HOST_DEBUG) {
-			nBodySimulation.printPosition();
-			nBodySimulation.printTotalForce();
-			System.out.println("done");
 		}
 
 	}

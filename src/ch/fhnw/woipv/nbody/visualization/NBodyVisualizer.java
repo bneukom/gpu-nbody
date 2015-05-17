@@ -9,9 +9,12 @@ package ch.fhnw.woipv.nbody.visualization;
 import static com.jogamp.opengl.GL.*;
 
 import java.awt.BorderLayout;
-import java.awt.Dimension;
 import java.awt.Frame;
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
 import java.awt.Point;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
@@ -30,10 +33,15 @@ import javax.swing.SwingUtilities;
 
 import org.jocl.Sizeof;
 
-import ch.fhnw.woipv.nbody.simulation.GpuNBodySimulation;
-import ch.fhnw.woipv.nbody.simulation.GpuNBodySimulation.Mode;
-import ch.fhnw.woipv.nbody.simulation.NBodySimulation;
+import ch.fhnw.woipv.nbody.simulation.AbstractNBodySimulation;
+import ch.fhnw.woipv.nbody.simulation.AbstractNBodySimulation.Mode;
+import ch.fhnw.woipv.nbody.simulation.cpu.CPUBruteForceNBodySimulation;
+import ch.fhnw.woipv.nbody.simulation.gpu.GPUBruteForceNBodySimulation;
+import ch.fhnw.woipv.nbody.simulation.gpu.GPUBarnesHutNBodySimulation;
+import ch.fhnw.woipv.nbody.simulation.universe.MonteCarloSphericalUniverseGenerator;
 import ch.fhnw.woipv.nbody.simulation.universe.RandomCubicUniverseGenerator;
+import ch.fhnw.woipv.nbody.simulation.universe.test.EightBodyUniverse;
+import ch.fhnw.woipv.nbody.simulation.universe.test.TwoBodyUniverse;
 
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
@@ -48,7 +56,7 @@ import com.jogamp.opengl.util.texture.TextureIO;
 
 public class NBodyVisualizer implements GLEventListener {
 
-	private NBodySimulation simulation;
+	private AbstractNBodySimulation simulation;
 
 	/**
 	 * Whether the initialization method of this GLEventListener has already been called
@@ -124,7 +132,7 @@ public class NBodyVisualizer implements GLEventListener {
 	 * The texture of the bodies
 	 */
 	private Texture bodyTexture;
-	
+
 	/**
 	 * Inner class encapsulating the MouseMotionListener and MouseWheelListener for the interaction
 	 */
@@ -165,6 +173,15 @@ public class NBodyVisualizer implements GLEventListener {
 		}
 	}
 
+	private class KeyboardControl extends KeyAdapter {
+		@Override
+		public void keyReleased(KeyEvent e) {
+			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+				runExit();
+			}
+		}
+	}
+
 	/**
 	 * Creates a new JOCLSimpleGL3 sample.
 	 * 
@@ -180,6 +197,11 @@ public class NBodyVisualizer implements GLEventListener {
 		final MouseControl mouseControl = new MouseControl();
 		glComponent.addMouseMotionListener(mouseControl);
 		glComponent.addMouseWheelListener(mouseControl);
+		final KeyboardControl keyboardControl = new KeyboardControl();
+		glComponent.addKeyListener(keyboardControl);
+
+		setFullscreen();
+
 		updateModelviewMatrix();
 
 		// Create and start an animator
@@ -187,7 +209,11 @@ public class NBodyVisualizer implements GLEventListener {
 		animator.start();
 
 		// Create the simulation
-		simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048 * 4, new RandomCubicUniverseGenerator(4));
+		simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 4, new RandomCubicUniverseGenerator(8));
+//		simulation = new GPUBurnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 8, new RandomCubicUniverseGenerator(12));
+		// simulation = new GPUBurnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 2, new RandomCubicUniverseGenerator(4));
+		// simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048 * 8, new LonLatSphericalUniverseGenerator());
+		// simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048, new PlummerUniverseGenerator());
 		// simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 128, new SphericalUniverseGenerator());
 
 		// Create the main frame
@@ -199,13 +225,26 @@ public class NBodyVisualizer implements GLEventListener {
 			}
 		});
 		frame.setLayout(new BorderLayout());
-		glComponent.setPreferredSize(new Dimension(2048, 1280));
 		frame.add(glComponent, BorderLayout.CENTER);
-		frame.pack();
+
+		frame.setUndecorated(true);
+		frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
 		frame.setVisible(true);
 		frame.setLocationRelativeTo(null);
 		glComponent.requestFocus();
 
+	}
+
+	/**
+	 * Sets the window to fullscreen.
+	 */
+	private void setFullscreen() {
+		GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
+		GraphicsDevice[] devices = env.getScreenDevices();
+
+		GraphicsDevice device = devices[0];
+
+		device.setFullScreenWindow(frame);
 	}
 
 	/**
@@ -414,7 +453,7 @@ public class NBodyVisualizer implements GLEventListener {
 		gl.glViewport(0, 0, drawable.getSurfaceWidth(), drawable.getSurfaceHeight());
 
 		final float aspect = (float) drawable.getSurfaceWidth() / drawable.getSurfaceHeight();
-		projectionMatrix = perspective(50, aspect, 0.1f, 100.0f);
+		projectionMatrix = perspective(50, aspect, 0.1f, 400.0f);
 	}
 
 	@Override

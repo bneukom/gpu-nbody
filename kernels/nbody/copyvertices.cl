@@ -11,7 +11,6 @@ __kernel void copyVertices(
 	int stepSize = get_local_size(0) * get_num_groups(0);
 	
 	for (int i = get_global_id(0); i < NBODIES; i += stepSize) {
-		//printf("(%f, %f, %f)\n", _posX[i], _posY[i], _posZ[i]);
 		pos[i] = (float4)(_posX[i], _posY[i], _posZ[i], 1);
 	}
 }

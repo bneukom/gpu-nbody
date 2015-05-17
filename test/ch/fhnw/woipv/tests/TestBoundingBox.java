@@ -31,11 +31,11 @@ public class TestBoundingBox {
 	private static final float FLOAT_MAX = 1_000_000_000;
 	private static final float EPSILON = 0.00001f;
 
-	private static final boolean HOST_DEBUG = true;
+	private static final boolean HOST_DEBUG = false;
 	private static final boolean KERNEL_DEBUG = false;
 
 	private static final int WARPSIZE = 64;
-	private static final int WORK_GROUPS = 4; // THREADS (for now all the same)
+	private static final int WORK_GROUPS = 8; // THREADS (for now all the same)
 	private static final int FACTORS = 1; // FACTORS (for now all the same)
 
 	private BuildOption[] buildOptions;
@@ -90,7 +90,7 @@ public class TestBoundingBox {
 	@Before
 	public void init() {
 
-		this.nbodies = 2048;
+		this.nbodies = 2048 * 16;
 		this.universeGenerator = new RandomCubicUniverseGenerator(nbodies);
 
 		// init opencl
@@ -100,7 +100,7 @@ public class TestBoundingBox {
 
 		// calculate workloads
 //		this.maxComputeUnits = (int) device.getLong(CL_DEVICE_MAX_COMPUTE_UNITS);
-		this.maxComputeUnits = 1;
+		this.maxComputeUnits = 8;
 
 		this.global = maxComputeUnits * WORK_GROUPS * FACTORS;
 		this.local = WORK_GROUPS;
@@ -188,7 +188,7 @@ public class TestBoundingBox {
 				new BuildOption("-D NBODIES=" + nbodies),
 				new BuildOption("-D WORKGROUP_SIZE=" + localWorkSize),
 				new BuildOption("-D NUM_WORK_GROUPS=" + numWorkGroups),
-				new BuildOption("-D DEBUG")
+//				new BuildOption("-D DEBUG")
 		};
 	}
 

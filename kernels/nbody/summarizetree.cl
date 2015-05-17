@@ -8,7 +8,7 @@
 #define LOCK (-2)
 
 // TODO pass as argument
-#define WARPSIZE 64
+#define WARPSIZE 32
 
 #define NUMBER_OF_CELLS 8 // the number of cells per node
 

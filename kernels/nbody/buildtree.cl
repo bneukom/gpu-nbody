@@ -175,6 +175,9 @@ __kernel void buildTree(
 		
 					// TODO this needs to be an atomic set in order for other threads to see it correctly??
                    	//atomic_store_explicit (&_child[locked], patch, memory_order_seq_cst, memory_scope_device);	
+                   	
+                   	//global volatile atomic_int* atomChild = (global volatile atomic_int*)_child;
+                   	//atomic_store(&atomChild[locked], patch);
                     _child[locked] = patch;
                 }
                 

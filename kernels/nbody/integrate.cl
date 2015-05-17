@@ -8,11 +8,9 @@
 #define LOCK (-2)
 
 // TODO pass as argument
-#define WARPSIZE 64
 #define MAXDEPTH 64
-#define EPSILON (0.05f * 0.05f)
 #define THETA (0.5f * 0.5f)
-#define TIMESTEP 0.025f
+#define TIMESTEP (0.025f)
 //#define TIMESTEP 0.00078125f
 
 #define NUMBER_OF_CELLS 8 // the number of cells per node
@@ -28,6 +26,7 @@ __kernel void integrate(
 	int stepSize = get_local_size(0) * get_num_groups(0);
 	
 	for (int i = get_global_id(0); i < NBODIES; i += stepSize) {
+
 		float deltaVelX = _accX[i] * TIMESTEP * 0.5f;	
 		float deltaVelY = _accY[i] * TIMESTEP * 0.5f;
 		float deltaVelZ = _accZ[i] * TIMESTEP * 0.5f;
@@ -43,5 +42,31 @@ __kernel void integrate(
 		_velX[i] = velX + deltaVelX;
 		_velY[i] = velY + deltaVelY;
 		_velZ[i] = velZ + deltaVelZ;
+		
+		DEBUG_PRINT(("velX[%d]: %f\n", i, _velX[i]));
+		DEBUG_PRINT(("velY[%d]: %f\n", i, _velY[i]));
+		DEBUG_PRINT(("velZ[%d]: %f\n", i, _velZ[i]));
+		
+		/*
+		_posX[i] += TIMESTEP * _velX[i] + 0.5f * TIMESTEP * TIMESTEP * _accX[i];
+		_posY[i] += TIMESTEP * _velY[i] + 0.5f * TIMESTEP * TIMESTEP * _accY[i];
+		_posZ[i] += TIMESTEP * _velZ[i] + 0.5f * TIMESTEP * TIMESTEP * _accZ[i];
+		
+		_velX[i] += TIMESTEP * _accX[i];
+		_velY[i] += TIMESTEP * _accY[i];
+		_velZ[i] += TIMESTEP * _accZ[i];
+		*/
+		
+		/*
+		_velX[i] += TIMESTEP * _accX[i];
+		_velY[i] += TIMESTEP * _accY[i];
+		_velZ[i] += TIMESTEP * _accZ[i];
+		
+		_posX[i] += TIMESTEP * _velX[i];
+		_posY[i] += TIMESTEP * _velY[i];
+		_posZ[i] += TIMESTEP * _velZ[i];
+		*/
+		
+		
 	}
 }
