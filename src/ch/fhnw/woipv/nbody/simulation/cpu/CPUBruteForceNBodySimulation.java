@@ -71,7 +71,7 @@ public class CPUBruteForceNBodySimulation extends AbstractNBodySimulation {
 				float dy = bodyY[j] - bodyY[i];
 				float dz = bodyZ[j] - bodyZ[i];
 
-				float dist = (float) Math.sqrt(dx * dx + dy * dy + dz * dz + EPSILON);
+				float dist = (float) Math.sqrt(dx * dx + dy * dy + dz * dz) + EPSILON;
 
 				double f = (m1 * m2) / (dist * dist * dist);
 

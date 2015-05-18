@@ -44,7 +44,7 @@ public class GPUBarnesHutNBodySimulation extends AbstractNBodySimulation {
 	private static final boolean HOST_DEBUG = false;
 	private static final boolean KERNEL_DEBUG = false;
 
-	private static final int WARPSIZE = 32;
+	private static final int WARPSIZE = 16;
 	private static final int WORK_GROUPS = 16; // THREADS (for now all the same)
 	private static final int FACTORS = 1; // FACTORS (for now all the same)
 
@@ -123,7 +123,7 @@ public class GPUBarnesHutNBodySimulation extends AbstractNBodySimulation {
 		// calculate workloads
 		// this.maxComputeUnits = (int) device.getLong(CL_DEVICE_MAX_COMPUTE_UNITS);
 		this.maxComputeUnits = 16;
-
+		
 		this.global = maxComputeUnits * WORK_GROUPS * FACTORS;
 		this.local = WORK_GROUPS;
 		this.numberOfNodes = calculateNumberOfNodes(nbodies, maxComputeUnits);
@@ -188,6 +188,8 @@ public class GPUBarnesHutNBodySimulation extends AbstractNBodySimulation {
 		this.integrateKernel = context.createKernel(new File("kernels/nbody/integrate.cl"), "integrate", options);
 		this.copyVertices = context.createKernel(new File("kernels/nbody/copyvertices.cl"), "copyVertices", options);
 
+		boundingBoxKernel.getWorkGroupInfo(device, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE);
+		
 		this.simulationKernels = new CLKernel[] { boundingBoxKernel, buildTreeKernel, summarizeKernel, sortKernel, calculateForceKernel, integrateKernel };
 	}
 
@@ -407,13 +409,13 @@ public class GPUBarnesHutNBodySimulation extends AbstractNBodySimulation {
 	}
 
 	public static void main(final String[] args) {
-		final int nbodies = 8;
-		final GPUBarnesHutNBodySimulation nBodySimulation = new GPUBarnesHutNBodySimulation(Mode.DEFAULT, nbodies, new EightBodyUniverse());
+		final int nbodies = 2048 * 2;
+		final GPUBarnesHutNBodySimulation nBodySimulation = new GPUBarnesHutNBodySimulation(Mode.DEFAULT, nbodies, new RandomCubicUniverseGenerator(6));
 
 		nBodySimulation.init(null);
 		nBodySimulation.initPositionBuffer(null, -1);
 
-		for (int i = 0; i < 100; ++i) {
+		for (int i = 0; i < 1000; ++i) {
 			if (HOST_DEBUG) {
 				long start = System.currentTimeMillis();
 				nBodySimulation.step();
@@ -423,8 +425,8 @@ public class GPUBarnesHutNBodySimulation extends AbstractNBodySimulation {
 			}
 
 			if (HOST_DEBUG) {
-//				nBodySimulation.printImpulse();
-//				nBodySimulation.printEnergy();
+				nBodySimulation.printImpulse();
+				nBodySimulation.printEnergy();
 //				nBodySimulation.printChildren();
 			}
 

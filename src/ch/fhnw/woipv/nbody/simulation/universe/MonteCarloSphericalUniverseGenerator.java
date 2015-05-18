@@ -11,7 +11,7 @@ public class MonteCarloSphericalUniverseGenerator implements UniverseGenerator {
 		
 		for (int i = 0; i < nbodies; ++i) {
 			double y = ((i * o) - 1) + (o / 2);
-			double r = Math.sqrt(1 - Math.pow(y, 2)) ;
+			double r = Math.sqrt(1 - Math.pow(y, 2)) * 2 ;
 			
 			double phi = ((i + rand) % nbodies) * increment;
 			

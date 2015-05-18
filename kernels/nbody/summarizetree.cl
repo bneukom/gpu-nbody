@@ -8,7 +8,7 @@
 #define LOCK (-2)
 
 // TODO pass as argument
-#define WARPSIZE 32
+#define WARPSIZE 16
 
 #define NUMBER_OF_CELLS 8 // the number of cells per node
 
@@ -35,11 +35,11 @@ __kernel void summarizeTree(
 	// 		- This might only work on real devices?
 	
     // align to warp size
-    //int node = (bottom & (-WARPSIZE)) + get_global_id(0);
-    //if (node < bottom)
-    //    node += stepSize;
+    int node = (bottom & (-WARPSIZE)) + get_global_id(0);
+    if (node < bottom)
+        node += stepSize;
     
-    int node = bottom + get_global_id(0);
+    //int node = bottom + get_global_id(0);
     
 	DEBUG_PRINT(("start node: %d\n", node));
 	

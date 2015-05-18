@@ -9,7 +9,6 @@
 
 // TODO pass as argument
 #define MAXDEPTH 64
-#define THETA (0.5f * 0.5f)
 #define TIMESTEP (0.025f)
 //#define TIMESTEP 0.00078125f
 

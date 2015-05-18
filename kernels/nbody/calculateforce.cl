@@ -8,10 +8,11 @@
 #define LOCK (-2)
 
 // TODO pass as argument
-#define WARPSIZE 32
+#define WARPSIZE 16
 #define MAXDEPTH 64
 #define EPSILON (0.05f * 0.05f)
-#define THETA (0.5f * 0.5f)
+//#define THETA (0.5f * 0.5f)
+#define THETA (1.5f)
 //#define THETA (0)
 #define TIMESTEP (0.025f)
 //#define TIMESTEP 0.00078125f
