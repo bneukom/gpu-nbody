@@ -37,8 +37,8 @@ import ch.fhnw.woipv.nbody.simulation.AbstractNBodySimulation;
 import ch.fhnw.woipv.nbody.simulation.AbstractNBodySimulation.Mode;
 import ch.fhnw.woipv.nbody.simulation.cpu.CPUBruteForceNBodySimulation;
 import ch.fhnw.woipv.nbody.simulation.gpu.GPUBarnesHutNBodySimulation;
-import ch.fhnw.woipv.nbody.simulation.universe.PlummerUniverseGenerator;
-import ch.fhnw.woipv.nbody.simulation.universe.RotatingDiskGalaxyGenerator;
+import ch.fhnw.woipv.nbody.simulation.universe.MonteCarloSphericalUniverseGenerator;
+import ch.fhnw.woipv.nbody.simulation.universe.RandomCubicUniverseGenerator;
 
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
@@ -206,10 +206,13 @@ public class NBodyVisualizer implements GLEventListener {
 		animator.start();
 
 		// Create the simulation
-		simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new RotatingDiskGalaxyGenerator());
-		//simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 4, new RandomCubicUniverseGenerator(8));
-		// simulation = new GPUBurnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 8, new RandomCubicUniverseGenerator(12));
-		// simulation = new GPUBurnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 2, new RandomCubicUniverseGenerator(4));
+		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new RotatingDiskGalaxyGenerator(3.5f, 100, 0));
+		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new RotatingDiskGalaxyGenerator(3.5f, 1, 1));
+		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new SphericalUniverseGenerator());
+
+		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new RandomCubicUniverseGenerator(6));
+		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 8, new MonteCarloSphericalUniverseGenerator());
+
 		// simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048 * 8, new LonLatSphericalUniverseGenerator());
 		// simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048, new PlummerUniverseGenerator());
 		// simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 128, new SphericalUniverseGenerator());
