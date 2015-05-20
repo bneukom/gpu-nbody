@@ -19,9 +19,10 @@ public abstract class AbstractNBodySimulation {
 	 * Initializes the OpenGL position buffer for the bodies.
 	 * 
 	 * @param gl
-	 * @param vbo
+	 * @param positionVBO
+	 * @param velocityVBO 
 	 */
-	public abstract void initPositionBuffer(GL3 gl, int vbo);
+	public abstract void initGLBuffers(GL3 gl, int positionVBO, int velocityVBO);
 
 	/**
 	 * Returns the number of bodies for this simulation.

@@ -3,7 +3,7 @@ package ch.fhnw.woipv.nbody.simulation.universe;
 // http://stackoverflow.com/questions/1185408/converting-from-longitude-latitude-to-cartesian-coordinates
 public class LonLatSphericalUniverseGenerator implements UniverseGenerator {
 
-	private static final double R = 3.0;
+	private static final double R = 5.0;
 
 	@Override
 	public void generate(int offset, int nbodies, float[] bodiesX, float[] bodiesY, float[] bodiesZ, float[] velX, float[] velY, float[] velZ, float[] bodiesMass) {

@@ -97,6 +97,7 @@ public class GPUBarnesHutNBodySimulation extends AbstractNBodySimulation {
 	private CLMemory<int[]> errorBuffer;
 
 	private CLMemory<Void> positionBuffer;
+	private CLMemory<Void> velocityBuffer;
 
 	private final UniverseGenerator universeGenerator;
 
@@ -229,20 +230,22 @@ public class GPUBarnesHutNBodySimulation extends AbstractNBodySimulation {
 	}
 
 	@Override
-	public void initPositionBuffer(final GL3 gl, final int vbo) {
-		if (positionBuffer != null) {
-			positionBuffer.release();
-		}
+	public void initGLBuffers(final GL3 gl, final int positionVBO, final int velocityVBO) {
 
 		if (gl != null) {
-			gl.glBindBuffer(GL_ARRAY_BUFFER, vbo);
-			positionBuffer = context.createFromGLBuffer(CL_MEM_WRITE_ONLY, vbo);
+			gl.glBindBuffer(GL_ARRAY_BUFFER, positionVBO);
+			positionBuffer = context.createFromGLBuffer(CL_MEM_WRITE_ONLY, positionVBO);
+			gl.glBindBuffer(GL_ARRAY_BUFFER, velocityVBO);
+			velocityBuffer = context.createFromGLBuffer(CL_MEM_WRITE_ONLY, velocityVBO);
 		} else {
 			final int size = nbodies * 4 * Sizeof.cl_float;
 			positionBuffer = context.createEmptyBuffer(CL_MEM_WRITE_ONLY, size);
+			velocityBuffer = context.createEmptyBuffer(CL_MEM_WRITE_ONLY, size);
 		}
 
-		copyVertices.setArguments(bodiesXBuffer, bodiesYBuffer, bodiesZBuffer, positionBuffer);
+		copyVertices.setArguments(
+				bodiesXBuffer, bodiesYBuffer, bodiesZBuffer, positionBuffer, 
+				velXBuffer, velYBuffer, velZBuffer, velocityBuffer);
 	}
 
 	@Override
@@ -250,8 +253,10 @@ public class GPUBarnesHutNBodySimulation extends AbstractNBodySimulation {
 		if (HOST_DEBUG)
 			System.out.println("step");
 
-		if (mode == Mode.GL_INTEROP)
+		if (mode == Mode.GL_INTEROP) {
 			commandQueue.enqueAcquireGLObject(positionBuffer);
+			commandQueue.enqueAcquireGLObject(velocityBuffer);
+		}
 
 		executeSimulationKernel(boundingBoxKernel);
 		executeSimulationKernel(buildTreeKernel);
@@ -264,6 +269,8 @@ public class GPUBarnesHutNBodySimulation extends AbstractNBodySimulation {
 			commandQueue.execute(copyVertices, 1, global, local);
 
 		commandQueue.finish();
+		
+		
 	}
 
 	private void executeSimulationKernel(final CLKernel kernel) {
@@ -333,6 +340,12 @@ public class GPUBarnesHutNBodySimulation extends AbstractNBodySimulation {
 		}
 
 		System.out.println("ekin: " + kineticEnergy + " epot:" + potentialEnergy + " etot: " + (kineticEnergy - potentialEnergy));
+	}
+	
+	private void printDepth() {
+		commandQueue.readBuffer(maxDepthBuffer);
+		
+		System.out.println("max depth: " + maxDepthBuffer.getData()[0]);
 	}
 
 	private void printImpulse() {
@@ -413,7 +426,7 @@ public class GPUBarnesHutNBodySimulation extends AbstractNBodySimulation {
 		final GPUBarnesHutNBodySimulation nBodySimulation = new GPUBarnesHutNBodySimulation(Mode.DEFAULT, nbodies, new RandomCubicUniverseGenerator(6));
 
 		nBodySimulation.init(null);
-		nBodySimulation.initPositionBuffer(null, -1);
+		nBodySimulation.initGLBuffers(null, -1, -1);
 
 		for (int i = 0; i < 1000; ++i) {
 			if (HOST_DEBUG) {

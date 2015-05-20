@@ -13,8 +13,10 @@ import com.jogamp.opengl.GL3;
 
 public class CPUBruteForceNBodySimulation extends AbstractNBodySimulation {
 
-	private int vbo;
 	private GL3 gl;
+
+	private int positionVBO;
+	private int velocityVBO;
 
 	private float[] bodyX;
 	private float[] bodyY;
@@ -99,7 +101,7 @@ public class CPUBruteForceNBodySimulation extends AbstractNBodySimulation {
 
 		// copy to opengl
 		if (mode == Mode.GL_INTEROP) {
-			gl.glBindBuffer(GL_ARRAY_BUFFER, vbo);
+			gl.glBindBuffer(GL_ARRAY_BUFFER, positionVBO);
 
 			final ByteBuffer byteBuffer = gl.glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 			final FloatBuffer vertices = byteBuffer.order(ByteOrder.nativeOrder()).asFloatBuffer();
@@ -153,8 +155,9 @@ public class CPUBruteForceNBodySimulation extends AbstractNBodySimulation {
 	}
 
 	@Override
-	public void initPositionBuffer(GL3 gl, int vbo) {
-		this.vbo = vbo;
+	public void initGLBuffers(GL3 gl, int positionVBO, int velocityVBO) {
+		this.velocityVBO = velocityVBO;
+		this.positionVBO = positionVBO;
 
 	}
 

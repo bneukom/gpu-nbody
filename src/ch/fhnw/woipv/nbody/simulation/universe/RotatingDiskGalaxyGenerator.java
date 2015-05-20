@@ -2,6 +2,7 @@ package ch.fhnw.woipv.nbody.simulation.universe;
 
 public class RotatingDiskGalaxyGenerator implements UniverseGenerator {
 	
+	private static final float RADIUS_OFFSET = 0.05f;
 	private float radius;
 	private float velocityMultiplier;
 	private float centerMass;
@@ -18,7 +19,7 @@ public class RotatingDiskGalaxyGenerator implements UniverseGenerator {
 		bodiesMass[0] = centerMass;
 
 		for (int i = 1; i < nbodies; ++i) {
-			float r = (float) (Math.random() * radius) + 0.1f; // + 0.1 to ensure it won't be on the center
+			float r = (float) (Math.random() * radius) + RADIUS_OFFSET; // + RADIUS_OFFSET to ensure it won't be on the center
 			double alpha = Math.random() * 2 * Math.PI;
 			float x = (float) (Math.cos(alpha) * r);
 			float y = (float) (Math.sin(alpha) * r);

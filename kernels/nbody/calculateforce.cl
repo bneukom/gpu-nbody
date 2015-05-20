@@ -10,7 +10,8 @@
 // TODO pass as argument
 #define WARPSIZE 16
 #define MAXDEPTH 64
-#define EPSILON (0.05f * 0.05f)
+// #define EPSILON (0.05f * 0.05f)
+#define EPSILON (0.0025f)
 //#define THETA (0.5f * 0.5f)
 #define THETA (1.5f)
 //#define THETA (0)

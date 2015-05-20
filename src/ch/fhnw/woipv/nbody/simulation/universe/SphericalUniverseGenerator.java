@@ -1,7 +1,6 @@
 package ch.fhnw.woipv.nbody.simulation.universe;
 
 public class SphericalUniverseGenerator implements UniverseGenerator {
-	private static final double R = 6.0;
 
 	@Override
 	public void generate(int offset, int nbodies, float[] bodiesX, float[] bodiesY, float[] bodiesZ, float[] velX, float[] velY, float[] velZ, float[] bodiesMass) {

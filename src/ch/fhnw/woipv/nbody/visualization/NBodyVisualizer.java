@@ -23,6 +23,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.file.Files;
 import java.util.Arrays;
@@ -35,11 +36,11 @@ import org.jocl.Sizeof;
 
 import ch.fhnw.woipv.nbody.simulation.AbstractNBodySimulation;
 import ch.fhnw.woipv.nbody.simulation.AbstractNBodySimulation.Mode;
-import ch.fhnw.woipv.nbody.simulation.cpu.CPUBruteForceNBodySimulation;
 import ch.fhnw.woipv.nbody.simulation.gpu.GPUBarnesHutNBodySimulation;
-import ch.fhnw.woipv.nbody.simulation.universe.MonteCarloSphericalUniverseGenerator;
-import ch.fhnw.woipv.nbody.simulation.universe.RandomCubicUniverseGenerator;
+import ch.fhnw.woipv.nbody.simulation.universe.RotatingDiskGalaxyGenerator;
 
+import com.jogamp.common.nio.Buffers;
+import com.jogamp.opengl.GL;
 import com.jogamp.opengl.GL3;
 import com.jogamp.opengl.GLAutoDrawable;
 import com.jogamp.opengl.GLCapabilities;
@@ -53,22 +54,20 @@ import com.jogamp.opengl.util.texture.TextureIO;
 
 public class NBodyVisualizer implements GLEventListener {
 
-	private AbstractNBodySimulation simulation;
+	private final AbstractNBodySimulation simulation;
 
 	/**
 	 * Whether the initialization method of this GLEventListener has already been called
 	 */
 	private boolean initialized = false;
 
-	/**
-	 * The vertex array object (required as of GL3)
-	 */
-	private int vertexArrayObject;
+	private int positionVAO;
 
-	/**
-	 * The VBO identifier
-	 */
-	private int vertexBufferObject;
+	private int positionVBO;
+
+	private int velocityVAO;
+
+	private int velocityVBO;
 
 	/**
 	 * The ID of the OpenGL shader program
@@ -123,7 +122,7 @@ public class NBodyVisualizer implements GLEventListener {
 	/**
 	 * The OpenGL Canvas
 	 */
-	private GLCanvas glComponent;
+	private final GLCanvas glComponent;
 
 	/**
 	 * The texture of the bodies
@@ -172,7 +171,7 @@ public class NBodyVisualizer implements GLEventListener {
 
 	private class KeyboardControl extends KeyAdapter {
 		@Override
-		public void keyReleased(KeyEvent e) {
+		public void keyReleased(final KeyEvent e) {
 			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
 				runExit();
 			}
@@ -206,12 +205,16 @@ public class NBodyVisualizer implements GLEventListener {
 		animator.start();
 
 		// Create the simulation
-		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new RotatingDiskGalaxyGenerator(3.5f, 100, 0));
-		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new RotatingDiskGalaxyGenerator(3.5f, 1, 1));
-		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new SphericalUniverseGenerator());
+		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new SerializedUniverseGenerator("universes/sphericaluniverse1.universe"));
+		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new SerializedUniverseGenerator("universes/montecarlouniverse1.universe"));
 
-		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new RandomCubicUniverseGenerator(6));
-		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 8, new MonteCarloSphericalUniverseGenerator());
+		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new RotatingDiskGalaxyGenerator(3.5f, 25, 0));
+		simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new RotatingDiskGalaxyGenerator(3.5f, 1, 1));
+		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new SphericalUniverseGenerator());
+		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new LonLatSphericalUniverseGenerator());
+
+		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new RandomCubicUniverseGenerator(5));
+		// simulation = new GPUBarnesHutNBodySimulation(Mode.GL_INTEROP, 2048 * 16, new MonteCarloSphericalUniverseGenerator());
 
 		// simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048 * 8, new LonLatSphericalUniverseGenerator());
 		// simulation = new GpuNBodySimulation(Mode.GL_INTEROP, 2048, new PlummerUniverseGenerator());
@@ -240,10 +243,10 @@ public class NBodyVisualizer implements GLEventListener {
 	 * Sets the window to fullscreen.
 	 */
 	private void setFullscreen() {
-		GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
-		GraphicsDevice[] devices = env.getScreenDevices();
+		final GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
+		final GraphicsDevice[] devices = env.getScreenDevices();
 
-		GraphicsDevice device = devices[0];
+		final GraphicsDevice device = devices[0];
 
 		device.setFullScreenWindow(frame);
 	}
@@ -299,9 +302,9 @@ public class NBodyVisualizer implements GLEventListener {
 			bodyTexture.setTexParameteri(gl, GL_TEXTURE_WRAP_S, GL_REPEAT);
 			bodyTexture.setTexParameteri(gl, GL_TEXTURE_WRAP_T, GL_REPEAT);
 			bodyTexture.enable(gl);
-		} catch (GLException e) {
+		} catch (final GLException e) {
 			e.printStackTrace();
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			e.printStackTrace();
 		}
 
@@ -315,25 +318,73 @@ public class NBodyVisualizer implements GLEventListener {
 	 *            The GL context
 	 */
 	private void initShaders(final GL3 gl) {
-		try {
-			final int vertexShaderID = gl.glCreateShader(GL3.GL_VERTEX_SHADER);
-			gl.glShaderSource(vertexShaderID, 1, new String[] { readAllLines("shaders/simulation.vert") }, null);
-			gl.glCompileShader(vertexShaderID);
+		final int vertexShaderId = createShader(gl, GL3.GL_VERTEX_SHADER, "shaders/simulation.vert");
+		final int fragmentShaderID = createShader(gl, GL3.GL_FRAGMENT_SHADER, "shaders/simulation.frag");
 
-			final int fragmentShaderID = gl.glCreateShader(GL3.GL_FRAGMENT_SHADER);
-			gl.glShaderSource(fragmentShaderID, 1, new String[] { readAllLines("shaders/simulation.frag") }, null);
-			gl.glCompileShader(fragmentShaderID);
+		shaderProgramID = gl.glCreateProgram();
 
-			shaderProgramID = gl.glCreateProgram();
-			gl.glAttachShader(shaderProgramID, vertexShaderID);
-			gl.glAttachShader(shaderProgramID, fragmentShaderID);
-			gl.glLinkProgram(shaderProgramID);
-		} catch (IOException e) {
-			e.printStackTrace();
+		gl.glAttachShader(shaderProgramID, vertexShaderId);
+		gl.glAttachShader(shaderProgramID, fragmentShaderID);
+		gl.glLinkProgram(shaderProgramID);
+
+		final IntBuffer linkStatus = Buffers.newDirectIntBuffer(1);
+		gl.glGetShaderiv(shaderProgramID, GL3.GL_LINK_STATUS, linkStatus);
+		if (linkStatus.get(0) == GL.GL_FALSE) {
+			final IntBuffer logLength = Buffers.newDirectIntBuffer(1);
+
+			gl.glGetShaderiv(shaderProgramID, GL3.GL_INFO_LOG_LENGTH, logLength);
+
+			final ByteBuffer infoLog = Buffers.newDirectByteBuffer(logLength.get(0));
+			gl.glGetShaderInfoLog(shaderProgramID, infoLog.limit(), logLength, infoLog);
+
+			final byte[] infoLogArray = new byte[logLength.get(0)];
+			infoLog.get(infoLogArray);
+
+			final String errorString = new String(infoLogArray);
+			System.err.println(errorString);
 		}
 	}
 
-	private static String readAllLines(String file) throws IOException {
+	/**
+	 * Creates a shader with the given type from the given file
+	 * 
+	 * @param gl
+	 * @param shaderType
+	 * @param file
+	 * @return
+	 */
+	private int createShader(final GL3 gl, final int shaderType, final String file) {
+		final int shaderId = gl.glCreateShader(shaderType);
+		try {
+			gl.glShaderSource(shaderId, 1, new String[] { readAllLines(file) }, null);
+			gl.glCompileShader(shaderId);
+			final IntBuffer vertexBufferCompilationStatus = Buffers.newDirectIntBuffer(1);
+			gl.glGetShaderiv(shaderId, GL3.GL_COMPILE_STATUS, vertexBufferCompilationStatus);
+			if (vertexBufferCompilationStatus.get(0) == GL.GL_FALSE) {
+				final IntBuffer logLength = Buffers.newDirectIntBuffer(1);
+
+				gl.glGetShaderiv(shaderId, GL3.GL_INFO_LOG_LENGTH, logLength);
+
+				final ByteBuffer infoLog = Buffers.newDirectByteBuffer(logLength.get(0));
+				gl.glGetShaderInfoLog(shaderId, infoLog.limit(), logLength, infoLog);
+
+				final byte[] infoLogArray = new byte[logLength.get(0)];
+				infoLog.get(infoLogArray);
+
+				final String errorString = new String(infoLogArray);
+				System.err.println(errorString);
+			}
+
+			return shaderId;
+
+		} catch (final IOException e) {
+			e.printStackTrace();
+		}
+
+		return -1;
+	}
+
+	private static String readAllLines(final String file) throws IOException {
 		return Files.readAllLines(new File(file).toPath()).stream().reduce("", (accu, l) -> accu + l + System.lineSeparator());
 	}
 
@@ -345,7 +396,7 @@ public class NBodyVisualizer implements GLEventListener {
 	 */
 	private void initVBOData(final GL3 gl) {
 		initVBO(gl);
-		simulation.initPositionBuffer(gl, vertexBufferObject);
+		simulation.initGLBuffers(gl, positionVBO, velocityVBO);
 	}
 
 	/**
@@ -355,35 +406,50 @@ public class NBodyVisualizer implements GLEventListener {
 	 *            The GL context
 	 */
 	private void initVBO(final GL3 gl) {
-		if (vertexBufferObject != 0) {
-			gl.glDeleteBuffers(1, new int[] { vertexBufferObject }, 0);
-			vertexBufferObject = 0;
+		if (positionVBO != 0) {
+			gl.glDeleteBuffers(1, new int[] { positionVBO }, 0);
+			positionVBO = 0;
 		}
-		if (vertexArrayObject != 0) {
-			gl.glDeleteVertexArrays(1, new int[] { vertexArrayObject }, 0);
-			vertexArrayObject = 0;
+		if (positionVAO != 0) {
+			gl.glDeleteVertexArrays(1, new int[] { positionVAO }, 0);
+			positionVAO = 0;
 		}
+		if (velocityVBO != 0) {
+			gl.glDeleteBuffers(1, new int[] { velocityVBO }, 0);
+			velocityVBO = 0;
+		}
+		if (velocityVAO != 0) {
+			gl.glDeleteVertexArrays(1, new int[] { velocityVAO }, 0);
+			velocityVAO = 0;
+		}
+
 		final int tempArray[] = new int[1];
 
-		// Create the vertex array object
+		// Create the position vertex array object
 		gl.glGenVertexArrays(1, IntBuffer.wrap(tempArray));
-		vertexArrayObject = tempArray[0];
-		gl.glBindVertexArray(vertexArrayObject);
+		positionVAO = tempArray[0];
+		gl.glBindVertexArray(positionVAO);
 
-		// Create the vertex buffer object
+		// Create the position vertex buffer object
 		gl.glGenBuffers(1, IntBuffer.wrap(tempArray));
-		vertexBufferObject = tempArray[0];
+		positionVBO = tempArray[0];
 
-		// Initialize the vertex buffer object
-		gl.glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
+		// Create the position vertex array object
+		gl.glGenVertexArrays(1, IntBuffer.wrap(tempArray));
+		velocityVAO = tempArray[0];
+		gl.glBindVertexArray(positionVAO);
+
+		// Create the position vertex buffer object
+		gl.glGenBuffers(1, IntBuffer.wrap(tempArray));
+		velocityVBO = tempArray[0];
+
 		final int size = simulation.getNumberOfBodies() * Sizeof.cl_float4;
+
+		gl.glBindBuffer(GL_ARRAY_BUFFER, positionVBO);
 		gl.glBufferData(GL_ARRAY_BUFFER, size, null, GL_DYNAMIC_DRAW);
 
-		// Initialize the attribute location of the input
-		// vertices for the shader program
-		final int location = gl.glGetAttribLocation(shaderProgramID, "inVertex");
-		gl.glVertexAttribPointer(location, 4, GL3.GL_FLOAT, false, 0, 0);
-		gl.glEnableVertexAttribArray(location);
+		gl.glBindBuffer(GL_ARRAY_BUFFER, velocityVBO);
+		gl.glBufferData(GL_ARRAY_BUFFER, size, null, GL_DYNAMIC_DRAW);
 
 	}
 
@@ -392,6 +458,7 @@ public class NBodyVisualizer implements GLEventListener {
 	 */
 	@Override
 	public void display(final GLAutoDrawable drawable) {
+
 		if (!initialized) {
 			return;
 		}
@@ -430,7 +497,17 @@ public class NBodyVisualizer implements GLEventListener {
 		gl.glEnable(GL_TEXTURE_2D);
 		gl.glEnable(GL_BLEND);
 		gl.glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-		gl.glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
+
+		final int velLocation = gl.glGetAttribLocation(shaderProgramID, "inVelocity");
+		gl.glBindBuffer(GL_ARRAY_BUFFER, velocityVBO);
+		gl.glEnableVertexAttribArray(velLocation);
+		gl.glVertexAttribPointer(velLocation, 4, GL3.GL_FLOAT, false, 0, 0);
+
+		final int inVertexLocation = gl.glGetAttribLocation(shaderProgramID, "inVertex");
+		gl.glBindBuffer(GL_ARRAY_BUFFER, positionVBO);
+		gl.glEnableVertexAttribArray(inVertexLocation);
+		gl.glVertexAttribPointer(inVertexLocation, 4, GL3.GL_FLOAT, false, 0, 0);
+
 		gl.glDrawArrays(GL_POINTS, 0, simulation.getNumberOfBodies());
 	}
 
