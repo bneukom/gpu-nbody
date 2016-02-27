@@ -1,6 +1,6 @@
 # OpenCL Nbody Simulation #
 
-OpenCL 2.0 adaptation of Burtscher and Pingalis [An Efficient CUDA Implementation of the Tree-Based Barnes Hut n-Body Algorithm](http://runge.math.smu.edu/Math6370/_downloads/burtscher_pingali-2011.pdf) 
+OpenCL 2.0 adaptation of Burtscher and Pingalis [An Efficient CUDA Implementation of the Tree-Based Barnes Hut n-Body Algorithm](http://runge.math.smu.edu/Math6370/_downloads/burtscher_pingali-2011.pdf). 
 
 * Parallel n log n implementation wich uses an octree
 * Requires OpenCL 2.0 GPU capabilities 
