@@ -6,4 +6,8 @@ OpenCL 2.0 adaptation of Burtscher and Pingalis [An Efficient CUDA Implementatio
 * Requires OpenCL 2.0 GPU capabilities 
 * Tested only on an Intel HD 5500 Card
 
+## Sample Vide and Image ##
+
 ![universe3.png](https://bitbucket.org/repo/jynrXz/images/3500153634-universe3.png)
+
+[500'000 Bodies Simulation](https://www.youtube.com/watch?v=vJ8ld5WgUz4)
