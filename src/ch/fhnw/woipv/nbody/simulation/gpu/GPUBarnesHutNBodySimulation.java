@@ -188,9 +188,6 @@ public class GPUBarnesHutNBodySimulation extends AbstractNBodySimulation {
 		this.calculateForceKernel = context.createKernel(new File("kernels/nbody/calculateforce.cl"), "calculateForce", options);
 		this.integrateKernel = context.createKernel(new File("kernels/nbody/integrate.cl"), "integrate", options);
 		this.copyVertices = context.createKernel(new File("kernels/nbody/copyvertices.cl"), "copyVertices", options);
-
-		boundingBoxKernel.getWorkGroupInfo(device, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE);
-		
 		this.simulationKernels = new CLKernel[] { boundingBoxKernel, buildTreeKernel, summarizeKernel, sortKernel, calculateForceKernel, integrateKernel };
 	}
 
